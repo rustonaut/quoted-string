@@ -1,7 +1,11 @@
 use std::str::Chars;
 use std::iter::Iterator;
 use std::cmp::{ PartialEq, Eq, max };
+use std::ascii::AsciiExt;
 
+pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
+    fn eq_ignore_ascii_case(&self, &Rhs) -> bool;
+}
 
 #[derive(Debug, Clone)]
 pub struct ContentChars<'a> {
@@ -79,6 +83,27 @@ impl<'a, 'b> PartialEq<ContentChars<'a>> for ContentChars<'b> {
 
 impl<'a> Eq for ContentChars<'a> {}
 
+impl<'a> AsciiCaseInsensitiveEq<str> for ContentChars<'a> {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &str) -> bool {
+        iter_eq_ascii_case_insensitive(self.clone(), other.chars())
+    }
+}
+
+impl<'a, 's> AsciiCaseInsensitiveEq<&'a str> for ContentChars<'s> {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &&'a str) -> bool {
+        iter_eq_ascii_case_insensitive(self.clone(), other.chars())
+    }
+}
+
+impl<'a, 'b> AsciiCaseInsensitiveEq<ContentChars<'a>> for ContentChars<'b> {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &ContentChars<'a>) -> bool {
+        iter_eq_ascii_case_insensitive(self.clone(), other.clone())
+    }
+}
+
 fn iter_eq<I1, I2>(mut left: I1, mut right: I2) -> bool
     where I1: Iterator<Item=char>,
           I2: Iterator<Item=char>
@@ -93,10 +118,23 @@ fn iter_eq<I1, I2>(mut left: I1, mut right: I2) -> bool
     true
 }
 
+fn iter_eq_ascii_case_insensitive<I1, I2>(mut left: I1, mut right: I2) -> bool
+    where I1: Iterator<Item=char>,
+          I2: Iterator<Item=char>
+{
+    loop {
+        match (left.next(), right.next()) {
+            (None, None) => break,
+            (Some(x), Some(y)) if x.eq_ignore_ascii_case(&y) => (),
+            _ => return false
+        }
+    }
+    true
+}
 
 #[cfg(test)]
 mod test {
-    use super::ContentChars;
+    use super::{ContentChars, AsciiCaseInsensitiveEq};
 
     #[test]
     fn no_quotation() {
@@ -136,6 +174,13 @@ mod test {
         assert_eq!(res.collect::<Vec<_>>().as_slice(), &[
             'a', 'b', 'c', '"', ' ', 'd', 'e', 'f'
         ])
+    }
+
+    #[test]
+    fn ascii_case_insensitive_eq() {
+        let left = ContentChars::from_string_unchecked(r#""abc""#);
+        let right = ContentChars::from_string_unchecked(r#""aBc""#);
+        assert!(left.eq_ignore_ascii_case(&right))
     }
 
 }

@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate quick_error;
 
-pub use self::iter::ContentChars;
+pub use self::iter::{ContentChars, AsciiCaseInsensitiveEq};
 pub use self::unquote::unquote_unchecked;
 pub use self::quote::{
     QuotedStringType, ValidWithoutQuotationCheck,
