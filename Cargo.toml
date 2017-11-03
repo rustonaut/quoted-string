@@ -1,9 +1,9 @@
 [package]
 authors = ["Philipp Korber <p.korber@1aim.com>"]
 categories = []
-description = "TODO"
+description = "This crate provides utilities to handle quoted strings (in Mail, Mime-Types, etc.)."
 documentation = "https://docs.rs/quoted-string"
-keywords = ["mail", "quoted", "mime", "string"]
+keywords = ["mail", "quoted", "mime", "string", "rfc5322"]
 license = "MIT OR Apache-2.0"
 name = "quoted-string"
 readme = "./README.md"
