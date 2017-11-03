@@ -1,11 +1,14 @@
 [package]
-name = "quoted-string"
-version = "0.1.0"
 authors = ["Philipp Korber <p.korber@1aim.com>"]
-documentation = "https://docs.rs/quoted-string"
-keywords = ["mail", "quoted", "mime", "string"]
-readme = "./README.md"
-repository = "https://github.com/1aim/quoted-string"
-license = "MIT OR Apache-2.0"
 categories = []
 description = "TODO"
+documentation = "https://docs.rs/quoted-string"
+keywords = ["mail", "quoted", "mime", "string"]
+license = "MIT OR Apache-2.0"
+name = "quoted-string"
+readme = "./README.md"
+repository = "https://github.com/1aim/quoted-string"
+version = "0.1.0"
+
+[dependencies]
+quick-error = "1.2.1"
