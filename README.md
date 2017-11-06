@@ -47,6 +47,9 @@ at all. Adding opt-in support for parts parsing quoted-string is in consideratio
   allocations. This can be used to _semantically_ compare two quoted string independent of how
   they used `quoted-pair`'s, it implements `Eq`.
   
+- `CharType`: classifies chars using a lookup table, mainly used to determine which chars can
+  be represented in a quoted-string and how, but can also be used to e.g. determine if
+  a string is a valid token (rfc2045)
 
 # API-Documentation
 
