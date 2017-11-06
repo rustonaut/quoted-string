@@ -203,19 +203,36 @@ impl<T> ValidWithoutQuotationCheck for T
 }
 
 
-/// quotes the input string
-///
-/// basically calls `quote_if_needed(input, |_|false, QuotedStringType::Utf8)`
+/// quotes the input string returning the quoted string and if it contains non us-ascii chars.
 #[inline]
 pub fn quote(input: &str) -> Result<(QuotedStringType, String)> {
-    let (mt, res) = quote_if_needed(input, |_|false, QuotedStringType::Utf8)?;
-    Ok( match res {
-        Cow::Owned(owned) =>  (mt, owned),
-        _ => unreachable!("[BUG] the string should have been quoted but wasn't")
-    } )
+    //TODO: we could implement this with `quote_if_needed` in the future, but
+    // due to the additional capabilities of `quote_if_needed` this might be
+    // more trublesome for the compiler to optimize (so benchmark it)
+    let mut out = String::with_capacity(input.len()+2);
+    out.push('"');
+    let mut ascii = true;
+    for ch in input.chars() {
+        match CharType::from(ch) {
+            Unquotable => return Err(Error::UnquotableCharacter(ch)),
+            NeedsQuoting => {
+                out.push('\\');
+                out.push(ch);
+            },
+            NonAscii => {
+                ascii = false;
+                out.push(ch);
+            },
+            _ => out.push(ch)
+        }
+
+    }
+    out.push('"');
+
+    Ok((QuotedStringType::from_is_ascii(ascii), out))
 }
 
-/// quotes the input string if needed(RFC 5322/6532/822)
+/// quotes the input string if needed(RFC 5322/6532/822/2045)
 ///
 /// The `valid_without_quoting` parameter accepts a function,
 /// which should _only_ return true if the char is valid
