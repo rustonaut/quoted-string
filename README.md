@@ -47,13 +47,10 @@ at all. Adding opt-in support for parts parsing quoted-string is in consideratio
   allocations. This can be used to _semantically_ compare two quoted string independent of how
   they used `quoted-pair`'s, it implements `Eq`.
   
-# Example
-
-TODO
 
 # API-Documentation
 
-TODO: Documentation can be [viewed on docs.rs](https://docs.rs/quoted-string).
+Documentation can be [viewed on docs.rs](https://docs.rs/quoted-string).
 
 
 ## License
