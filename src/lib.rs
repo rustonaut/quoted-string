@@ -22,7 +22,6 @@
 //! to be represented as a quoted-pair (`'\\'` and `'"'`) which are token chars (token of rfc2045)
 //! or tspecial chars (rfc2045) or non us-ascii chars or allowed white space chars (`'\t'` and `' '`).
 //!
-
 //! The obsolete syntax is is currently _not supported_. Differences would be:
 //!
 //! 1. it would allow CTL's in qtext
@@ -30,6 +29,7 @@
 //!
 //! Nevertheless this part of the syntax is obsolete and should not be generated
 //! at all. Adding opt-in support for parts parsing quoted-string is in consideration.
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate quick_error;
@@ -44,6 +44,8 @@ pub use self::quote::{
 
 #[macro_use]
 mod utils;
+
+/// quoted-string errors
 pub mod error;
 mod iter;
 mod unquote;

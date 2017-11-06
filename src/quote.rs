@@ -149,12 +149,18 @@ impl From<char> for CharType {
 /// utf8 characters.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum QuotedStringType {
+    /// the content can be/is utf-8
     Utf8,
+    /// the content can be/is only ascii
     AsciiOnly
 }
 
 impl QuotedStringType {
 
+    /// creates a QuotedString type from a bool
+    ///
+    /// - if `is_ascii == true` then `AsciiOnly` is returned
+    /// - if `is_ascii == false` then `Utf8` is returned
     #[inline]
     pub fn from_is_ascii(is_ascii: bool) -> Self {
         if is_ascii {

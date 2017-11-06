@@ -5,6 +5,13 @@ use std::ascii::AsciiExt;
 
 /// Analogous to PartialEq, but with _ascii_ case insensitive equality
 pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
+
+    /// compares this instance with other with a ascii case insensitive comparsion algorithm
+    ///
+    /// Note that this is _ascii_ case insensitivity. Which means this will not work
+    /// well/as expected if the content contain non ascii characters.
+    /// E.g. the upercase of `"ß"` was `"SS"` but by know there is also a
+    /// "ẞ" used in all caps writing.
     fn eq_ignore_ascii_case(&self, other: &Rhs) -> bool;
 }
 
