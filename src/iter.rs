@@ -90,6 +90,13 @@ impl<'a> PartialEq<str> for ContentChars<'a> {
     }
 }
 
+impl<'a, 'b> PartialEq<ContentChars<'b>> for &'a str {
+    #[inline]
+    fn eq(&self, other: &ContentChars<'b>) -> bool {
+        iter_eq(self.chars(), other.clone())
+    }
+}
+
 impl<'a, 'b> PartialEq<&'b str> for ContentChars<'a> {
     #[inline]
     fn eq(&self, other: &&'b str) -> bool {
@@ -121,6 +128,15 @@ impl<'a, 'b> AsciiCaseInsensitiveEq<ContentChars<'b>> for ContentChars<'a> {
         iter_eq_ascii_case_insensitive(self.clone(), other.clone())
     }
 }
+
+impl<'a, 'b> AsciiCaseInsensitiveEq<ContentChars<'b>> for &'a str {
+    #[inline]
+    fn eq_ignore_ascii_case(&self, other: &ContentChars<'b>) -> bool {
+        iter_eq_ascii_case_insensitive(self.chars(), other.clone())
+    }
+}
+
+
 
 impl<'a, 'b> AsciiCaseInsensitiveEq<&'b str> for ContentChars<'a>  {
     #[inline]
@@ -207,5 +223,4 @@ mod test {
         let right = ContentChars::from_string_unchecked(r#""aBc""#);
         assert!(left.eq_ignore_ascii_case(&right))
     }
-
 }
