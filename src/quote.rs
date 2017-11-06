@@ -3,13 +3,112 @@ use std::ascii::AsciiExt;
 
 use error::{Error, Result};
 
+use self::CharType::*;
+
+/// A lookup table for chars < 0x80
+static QTEXT_INFO: &[CharType] = &[
+    //0x00
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    //0x08
+    Unquotable, Ws, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    //0x10
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    //0x18
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable,
+    //0x20
+    Ws, Token, NeedsQuoting, Token,
+    Token, Token, Token, Token,
+    //0x28
+    TSpecial, TSpecial, Token, Token,
+    TSpecial, Token, Token, TSpecial,
+    //0x30
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x38
+    Token, Token, TSpecial, TSpecial,
+    TSpecial, TSpecial, TSpecial, TSpecial,
+    //0x40
+    TSpecial, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x48
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x50
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x58
+    Token, Token, Token, TSpecial,
+    NeedsQuoting, TSpecial, Token, Token,
+    //0x60
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x68
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x70
+    Token, Token, Token, Token,
+    Token, Token, Token, Token,
+    //0x78
+    Token, Token, Token, Token,
+    Token, Token, Token, Unquotable
+];
+
+/// A enum for usage in combination with the QTEXT_INFO lookup table
+///
+/// To see if a character is valid inside a quoted string
+/// use `char_type > 1`  which means any token, tspecial (except '"' and '\\')
+/// ws and non us-ascii character is included.
+///
+/// To see if a character needs to be represented as a quoted-pair in
+/// a quoted string use `char_type == NeedsQuoting`.
+///
+/// # Example
+/// ```
+/// use mime::CharType::{self, *};
+///
+/// fn simple_quote(s: &str) -> String {
+///     let mut buffer = String::new();
+///     for ch in s.chars() {
+///         match CharType::from(ch) {
+///             Unquotable => panic!("can not quote: {:?}", ch),
+///             NeedsQuoting => { buffer.push('\\'); buffer.push(ch); },
+///             _ => buffer.push(ch)
+///         }
+///     }
+/// }
+///
+/// fn is_token(s: &str) -> bool {
+///     s.chars().all(|ch| CharType::from(ch) == Token)
+/// }
+///
+/// let x = "hallo\"there";
+/// let y = "abc";
+///
+/// assert!(!is_token(x));
+/// assert!(is_token(y));
+///
+/// let quoted_x = simple_quote(x);
+/// assert_eq!(x, "\"hallo\\\"there\"");
+/// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 #[repr(u8)]
 pub enum CharType {
+    /// a unquotable character (all CTLs expect "\t")
     Unquotable = 0,
+    /// either '"' or '\\'
     NeedsQuoting = 1,
-    Normal = 2,
-    Ws = 3
+    /// a rfc2045 token character
+    Token = 2,
+    /// a rfc2045 tspecial character (except '"' and '\\')
+    TSpecial = 3,
+    /// a allowed white space character (either '\t' or ' ')
+    Ws = 4,
+    /// a non us-ascii character
+    NonAscii = 5,
 }
 
 impl PartialEq<u8> for CharType {
@@ -23,41 +122,16 @@ impl PartialEq<CharType> for u8 {
     }
 }
 
-/// A lookup table for chars < 0x80
-///
-/// Following results can be optained:
-///  - `0` (`CharType::Unquotable`): character can not appear in a quoted string at all
-///  - `1` (`CharType::NeedsQuoting`): character can appear in a quoted string
-///    is quoted (`'\\'` and `'"'`)
-///  - `2` (`CharType::Normal`): character can appear without quoting in a quoted string
-///  - `3` (`CharType::Ws`): character can appear without quoting in a quoted string and
-///    is a whitespace character
-///
-/// # Example
-/// ```
-/// use quoted_string::QTEXT_INFO;
-/// fn write_to_quoted_string_lossy(ch: char, out: &mut String) {
-///     if ch as u8 <= 0x7f {
-///         match QTEXT_INFO[ch as usize] {
-///             0 => (),
-///             1 => { out.push('\\'); out.push(ch); },
-///             2 | 3 => { out.push(ch); }
-///             _ => unreachable!()
-///         }
-///     }
-/// }
-/// ```
-pub static QTEXT_INFO: &[u8] = &[
-    //0 1 2  3  4  5  6  7  8  9  A  B  C  D  E  F
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, //0x0_
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //0x1_
-    3, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //0x2_
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //0x3_
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //0x4_
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 2, 2, 2, //0x5_
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, //0x6_
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0  //0x7_
-];
+impl From<char> for CharType {
+    fn from(ch: char) -> Self {
+        let ch_num = ch as usize;
+        if ch_num > 128 {
+            CharType::NonAscii
+        } else {
+            QTEXT_INFO[ch_num]
+        }
+    }
+}
 
 
 
@@ -192,6 +266,7 @@ fn _quote(
     start_escape_check_from: usize
 ) -> Result<(bool, String)>
 {
+    use self::CharType::*;
     let ascii_only = quoted_string_type == QuotedStringType::AsciiOnly;
     debug_assert!(!(ascii_only && !was_ascii));
 
@@ -203,25 +278,26 @@ fn _quote(
 
     let mut ascii = was_ascii;
     for ch in rest.chars() {
-        if ch.is_ascii() {
-            //in this branch char is_ascii is true so char is us-ascci
-            //so char is <=128 so the lookup can not panic
-            let res = QTEXT_INFO[ch as usize];
-            if res == CharType::Unquotable {
+        match CharType::from(ch) {
+            Unquotable => {
                 return Err(Error::UnquotableCharacter(ch));
-            }
-            if res == CharType::NeedsQuoting {
-                out.push('\\');
-            }
-            out.push(ch);
-        } else {
-            if ascii_only {
-                return Err(Error::NonUsAsciiInput);
-            }
-            ascii = false;
+            },
+            NonAscii => {
+                if ascii_only {
+                    return Err(Error::NonUsAsciiInput);
+                }
+                ascii = false;
 
-            //any on us-ascii char is valid qtext
-            out.push(ch);
+                //any on us-ascii char is valid qtext
+                out.push(ch);
+            },
+            NeedsQuoting => {
+                out.push('\\');
+                out.push(ch);
+            },
+            _ => {
+                out.push(ch);
+            }
         }
     }
     out.push( '"' );
@@ -264,6 +340,15 @@ mod test {
             '#'...'[' |
             //not '\\' [d:92]
             ']'...'~' => true,
+            _ => false
+        }
+    }
+
+    fn is_tspecial(ch: char) -> bool {
+        match ch {
+            '(' | ')' | '<' | '>'  | '@' |
+            ',' | ';' | ':' | '\\' | '"' |
+            '/' | '[' | ']' | '?'  | '=' => true,
             _ => false
         }
     }
@@ -411,11 +496,17 @@ mod test {
             let ch = bch as char;
             let res = QTEXT_INFO[bch as usize];
             match res {
-                0 => assert!(!is_qtext(ch)),
-                1 => assert!(ch == '\\' || ch == '"' ),
-                2 => assert!(is_qtext(ch)),
-                3 => assert!(ch == ' ' || ch == '\t'),
-                _ => panic!("unexpected value in lookup table")
+                Unquotable => assert!(!is_qtext(ch)),
+                NeedsQuoting => assert!(ch == '\\' || ch == '"' ),
+                Token => {
+                    assert!(is_qtext(ch));
+                    assert!(!is_tspecial(ch));
+                    assert!(ch > ' ');
+                    assert!(ch <= '~');
+                },
+                TSpecial => assert!(is_tspecial(ch)),
+                Ws => assert!(ch == ' ' || ch == '\t'),
+                NonAscii => unreachable!()
             }
         }
     }

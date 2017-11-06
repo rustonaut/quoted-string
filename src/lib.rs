@@ -5,7 +5,7 @@ pub use self::iter::{ContentChars, AsciiCaseInsensitiveEq};
 pub use self::unquote::unquote_unchecked;
 pub use self::quote::{
     QuotedStringType, ValidWithoutQuotationCheck,
-    quote, quote_if_needed, QTEXT_INFO,
+    quote, quote_if_needed,
     CharType
 };
 
