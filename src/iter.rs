@@ -8,7 +8,7 @@ pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
     fn eq_ignore_ascii_case(&self, other: &Rhs) -> bool;
 }
 
-/// A iterator over chars of the content represented by the quoted strings
+/// A iterator over chars of the content represented by the quoted strings (PartialEq<&str>)
 ///
 /// It will on the fly (without extra allocation)
 /// remove the surrounding quotes and unquote quoted-pairs
