@@ -68,10 +68,11 @@ static QTEXT_INFO: &[CharType] = &[
 ///
 /// # Example
 /// ```
-/// use mime::CharType::{self, *};
+/// use quoted_string::CharType::{self, Unquotable, NeedsQuoting, Token};
 ///
 /// fn simple_quote(s: &str) -> String {
 ///     let mut buffer = String::new();
+///     buffer.push('"');
 ///     for ch in s.chars() {
 ///         match CharType::from(ch) {
 ///             Unquotable => panic!("can not quote: {:?}", ch),
@@ -79,6 +80,8 @@ static QTEXT_INFO: &[CharType] = &[
 ///             _ => buffer.push(ch)
 ///         }
 ///     }
+///     buffer.push('"');
+///     buffer
 /// }
 ///
 /// fn is_token(s: &str) -> bool {
@@ -92,7 +95,7 @@ static QTEXT_INFO: &[CharType] = &[
 /// assert!(is_token(y));
 ///
 /// let quoted_x = simple_quote(x);
-/// assert_eq!(x, "\"hallo\\\"there\"");
+/// assert_eq!(quoted_x, "\"hallo\\\"there\"");
 /// ```
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Copy, Clone)]
 #[repr(u8)]

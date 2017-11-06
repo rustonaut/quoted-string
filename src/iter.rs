@@ -3,10 +3,33 @@ use std::iter::Iterator;
 use std::cmp::{ PartialEq, Eq, max };
 use std::ascii::AsciiExt;
 
+/// Analogous to PartialEq, but with _ascii_ case insensitive equality
 pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
-    fn eq_ignore_ascii_case(&self, &Rhs) -> bool;
+    fn eq_ignore_ascii_case(&self, other: &Rhs) -> bool;
 }
 
+/// A iterator over chars of the content represented by the quoted strings
+///
+/// It will on the fly (without extra allocation)
+/// remove the surrounding quotes and unquote quoted-pairs
+///
+/// It implements Eq, and PartialEq with str, &str and itself. This
+/// enables to compare a quoted string with a string representing the
+/// content of a quoted string.
+///
+/// # Example
+///
+/// ```
+/// # use quoted_string::ContentChars;
+/// use quoted_string::AsciiCaseInsensitiveEq;
+///
+/// let quoted_string = r#""ab\"\ c""#;
+/// let cc = ContentChars::from_string_unchecked(quoted_string);
+/// assert_eq!(cc, "ab\" c");
+/// assert!(cc.eq_ignore_ascii_case("AB\" c"));
+/// assert_eq!(cc.collect::<Vec<_>>().as_slice(), &[ 'a', 'b', '"', ' ', 'c' ] );
+///
+/// ```
 #[derive(Debug, Clone)]
 pub struct ContentChars<'a> {
     inner: Chars<'a>
@@ -67,21 +90,23 @@ impl<'a> PartialEq<str> for ContentChars<'a> {
     }
 }
 
-impl<'a, 's> PartialEq<&'a str> for ContentChars<'s> {
+impl<'a, 'b> PartialEq<&'b str> for ContentChars<'a> {
     #[inline]
-    fn eq(&self, other: &&'a str) -> bool {
+    fn eq(&self, other: &&'b str) -> bool {
         iter_eq(self.clone(), other.chars())
     }
 }
 
-impl<'a, 'b> PartialEq<ContentChars<'a>> for ContentChars<'b> {
+impl<'a, 'b> PartialEq<ContentChars<'b>> for ContentChars<'a> {
     #[inline]
-    fn eq(&self, other: &ContentChars<'a>) -> bool {
+    fn eq(&self, other: &ContentChars<'b>) -> bool {
         iter_eq(self.clone(), other.clone())
     }
 }
 
 impl<'a> Eq for ContentChars<'a> {}
+
+
 
 impl<'a> AsciiCaseInsensitiveEq<str> for ContentChars<'a> {
     #[inline]
@@ -90,17 +115,17 @@ impl<'a> AsciiCaseInsensitiveEq<str> for ContentChars<'a> {
     }
 }
 
-impl<'a, 's> AsciiCaseInsensitiveEq<&'a str> for ContentChars<'s> {
+impl<'a, 'b> AsciiCaseInsensitiveEq<ContentChars<'b>> for ContentChars<'a> {
     #[inline]
-    fn eq_ignore_ascii_case(&self, other: &&'a str) -> bool {
-        iter_eq_ascii_case_insensitive(self.clone(), other.chars())
+    fn eq_ignore_ascii_case(&self, other: &ContentChars<'b>) -> bool {
+        iter_eq_ascii_case_insensitive(self.clone(), other.clone())
     }
 }
 
-impl<'a, 'b> AsciiCaseInsensitiveEq<ContentChars<'a>> for ContentChars<'b> {
+impl<'a, 'b> AsciiCaseInsensitiveEq<&'b str> for ContentChars<'a>  {
     #[inline]
-    fn eq_ignore_ascii_case(&self, other: &ContentChars<'a>) -> bool {
-        iter_eq_ascii_case_insensitive(self.clone(), other.clone())
+    fn eq_ignore_ascii_case(&self, other: &&'b str) -> bool {
+        iter_eq_ascii_case_insensitive(self.clone(), other.chars())
     }
 }
 
