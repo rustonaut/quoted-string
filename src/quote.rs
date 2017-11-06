@@ -1,4 +1,8 @@
 use std::borrow::Cow;
+// this import will become unused in future rust versions
+// but won't be removed for now for supporting current
+// rust versions
+#[allow(warnings)]
 use std::ascii::AsciiExt;
 
 use error::{Error, Result};
@@ -356,6 +360,10 @@ fn scan_ahead<FN>(inp: &str, valid_without_quoting: &mut FN, tp: QuotedStringTyp
 
 #[cfg(test)]
 mod test {
+    // this import will become unused in future rust versions
+    // but won't be removed for now for supporting current
+    // rust versions
+    #[allow(warnings)]
     use std::ascii::AsciiExt;
     use super::*;
     fn is_qtext(ch: char) -> bool {

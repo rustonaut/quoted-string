@@ -1,6 +1,11 @@
 use std::str::Chars;
 use std::iter::Iterator;
 use std::cmp::{ PartialEq, Eq, max };
+
+// this import will become unused in future rust versions
+// but won't be removed for now for supporting current
+// rust versions
+#[allow(warnings)]
 use std::ascii::AsciiExt;
 
 /// Analogous to PartialEq, but with _ascii_ case insensitive equality
