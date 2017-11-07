@@ -68,7 +68,7 @@ impl<'s> ContentChars<'s> {
                 quoted.chars()
             };
 
-        ContentChars{ inner }
+        ContentChars{ inner: inner }
     }
 }
 

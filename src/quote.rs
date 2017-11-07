@@ -10,7 +10,7 @@ use error::{Error, Result};
 use self::CharType::*;
 
 /// A lookup table for chars < 0x80
-static QTEXT_INFO: &[CharType] = &[
+static QTEXT_INFO: &'static [CharType] = &[
     //0x00
     Unquotable, Unquotable, Unquotable, Unquotable,
     Unquotable, Unquotable, Unquotable, Unquotable,
