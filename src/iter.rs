@@ -61,7 +61,7 @@ impl<'s> ContentChars<'s> {
     /// as there is no clear way how to handle invalid input.
     pub fn from_string_unchecked(quoted: &'s str) -> Self {
         let inner =
-            if quoted.chars().next().map(|ch| ch == '"').unwrap_or(false) {
+            if quoted.chars().next() == Some('"') {
                 // do not panic on invalid input "\"" is seen as "\"\""
                 quoted[1..max(1, quoted.len()-1)].chars()
             } else {
