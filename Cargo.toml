@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 name = "quoted-string"
 readme = "./README.md"
 repository = "https://github.com/1aim/quoted-string"
-version = "0.2.0"
+version = "0.2.1"
 
 [dependencies]
 quick-error = "1.2.1"
