@@ -12,53 +12,54 @@ use self::CharType::*;
 /// A lookup table for chars < 0x80
 static QTEXT_INFO: &'static [CharType] = &[
     //0x00
-    Unquotable, Unquotable, Unquotable, Unquotable,
-    Unquotable, Unquotable, Unquotable, Unquotable,
-    //0x08
-    Unquotable, Ws, Unquotable, Unquotable,
-    Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Ws,         Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable,
     //0x10
-    Unquotable, Unquotable, Unquotable, Unquotable,
-    Unquotable, Unquotable, Unquotable, Unquotable,
-    //0x18
-    Unquotable, Unquotable, Unquotable, Unquotable,
-    Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable,
+    Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable, Unquotable,
     //0x20
-    Ws, Token, NeedsQuoting, Token,
-    Token, Token, Token, Token,
-    //0x28
-    TSpecial, TSpecial, Token, Token,
-    TSpecial, Token, Token, TSpecial,
+    Ws,         Token,      NeedsQuoting, Token,    Token,      Token,      Token,       Token,
+    TSpecial,   TSpecial,   Token,      Token,      TSpecial,   Token,      Token,       TSpecial,
     //0x30
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
-    //0x38
-    Token, Token, TSpecial, TSpecial,
-    TSpecial, TSpecial, TSpecial, TSpecial,
+    Token,      Token,      Token,      Token,      Token,      Token,      Token,       Token,
+    Token,      Token,      TSpecial,   TSpecial,   TSpecial,   TSpecial,   TSpecial,    TSpecial,
     //0x40
-    TSpecial, Token, Token, Token,
-    Token, Token, Token, Token,
-    //0x48
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
+    TSpecial,   Token,      Token,       Token,     Token,      Token,      Token,      Token,
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Token,
     //0x50
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
-    //0x58
-    Token, Token, Token, TSpecial,
-    NeedsQuoting, TSpecial, Token, Token,
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Token,
+    Token,      Token,      Token,       TSpecial,  NeedsQuoting, TSpecial, Token,      Token,
     //0x60
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
-    //0x68
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Token,
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Token,
     //0x70
-    Token, Token, Token, Token,
-    Token, Token, Token, Token,
-    //0x78
-    Token, Token, Token, Token,
-    Token, Token, Token, Unquotable
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Token,
+    Token,      Token,      Token,       Token,     Token,      Token,      Token,      Unquotable,
+    //0x80
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0x90
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xA0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xB0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xC0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xD0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xE0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xF0
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    NonAscii,   NonAscii,   NonAscii,    NonAscii,  NonAscii,   NonAscii,   NonAscii,   NonAscii,
+    //0xFF
 ];
 
 /// A enum for usage in combination with the QTEXT_INFO lookup table
@@ -129,12 +130,23 @@ impl PartialEq<CharType> for u8 {
     }
 }
 
+/// From<u8> can be used for chars <= 256, and bytes (e.g. utf8 bytes)
+///
+/// In difference to `From<char>` it is only a lookup without any branches
+impl From<u8> for CharType {
+    fn from(byte: u8) -> Self {
+        //OPTIMIZE: check if LLVM optimized out bounds checks
+        QTEXT_INFO[byte as usize]
+    }
+}
+
 impl From<char> for CharType {
     fn from(ch: char) -> Self {
         let ch_num = ch as usize;
-        if ch_num > 128 {
+        if ch_num >= 256 {
             CharType::NonAscii
         } else {
+            //OPTIMIZE: check if LLVM optimized out bounds checks
             QTEXT_INFO[ch_num]
         }
     }
@@ -526,7 +538,7 @@ mod test {
 
     #[test]
     fn qtext_info_check() {
-        for bch in 0u8..0x80 {
+        for bch in 0u8..0xFF {
             let ch = bch as char;
             let res = QTEXT_INFO[bch as usize];
             match res {
@@ -540,9 +552,29 @@ mod test {
                 },
                 TSpecial => assert!(is_tspecial(ch)),
                 Ws => assert!(ch == ' ' || ch == '\t'),
-                NonAscii => unreachable!()
+                NonAscii => assert!(bch > 0x7f)
             }
         }
+    }
+
+    #[test]
+    fn char_type_from_char() {
+        assert_eq!(CharType::from(0 as char), Unquotable);
+        assert_eq!(CharType::from(126 as char), Token);
+        assert_eq!(CharType::from(127 as char), Unquotable);
+        assert_eq!(CharType::from(128 as char), NonAscii);
+        assert_eq!(CharType::from(255 as char), NonAscii);
+        let not_in_table: char = "\u{00FF}".chars().next().unwrap();
+        assert_eq!(CharType::from(not_in_table), NonAscii);
+    }
+
+    #[test]
+    fn char_type_from_byte() {
+        assert_eq!(CharType::from(0), Unquotable);
+        assert_eq!(CharType::from(126), Token);
+        assert_eq!(CharType::from(127), Unquotable);
+        assert_eq!(CharType::from(128), NonAscii);
+        assert_eq!(CharType::from(255), NonAscii);
     }
 
 }
