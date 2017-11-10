@@ -1,6 +1,6 @@
 [package]
 name    = "quoted-string"
-version = "0.2.1"
+version = "0.2.2"
 
 authors = ["Philipp Korber <p.korber@1aim.com>"]
 license = "MIT/Apache-2.0"
