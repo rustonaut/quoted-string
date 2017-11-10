@@ -11,7 +11,7 @@ obsolete parts of the syntax.
 
 Grammar
 -------
-```
+```no-rust
 quoted-string   = DQUOTE *( *WSP qcontent) *WSP DQUOTE
 WSP = ' ' / '\t'
 qcontent = qtext / quoted-pair
