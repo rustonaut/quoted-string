@@ -43,10 +43,6 @@ Available functionality contains
   quoted-pais not needing any extra memory allocations. This can be used to
   _semantically_ compare two quoted strings regardless of how they used
   `quoted-pair`s, it implements `Eq`.
-  
-- `CharType`: classifies chars using a lookup table, mainly used to determine
-  which chars can be represented in a quoted-string and how, but can also be
-  used to e.g. determine if a string is a valid token (RFC2045)
 
 License
 =======
