@@ -84,31 +84,44 @@ impl<T> ValidWithoutQuotationCheck for T
 /// quotes the input string returning the quoted string and if it contains non us-ascii chars.
 #[inline]
 pub fn quote(input: &str) -> Result<(QuotedStringType, String)> {
-    //TODO: we could implement this with `quote_if_needed` in the future, but
-    // due to the additional capabilities of `quote_if_needed` this might be
-    // more trublesome for the compiler to optimize (so benchmark it)
     let mut out = String::with_capacity(input.len()+2);
     out.push('"');
+    let ascii = quote_inner(input, false, &mut out)?;
+    out.push('"');
+
+    Ok((QuotedStringType::from_is_ascii(ascii), out))
+}
+
+/// quotes a input writing it into the output buffer, does not add surrounding '"'
+///
+/// if ascii_only is true and non asii chars a fround an error is returned.
+///
+/// If no error is returned a boolean indecating if the whole input was ascii is
+/// returned.
+fn quote_inner(input: &str, ascii_only: bool, out: &mut String) -> Result<bool> {
     let mut ascii = true;
     for ch in input.chars() {
         let kind = Charset::lookup(ch);
         if kind.is_ascii() {
             if kind.is(rfc5322::QTextWs) {
                 out.push(ch)
-            } else if ch == '\\' || ch == '"' {
+            } else if ch == '"' || ch == '\\' {
                 out.push('\\');
                 out.push(ch);
             } else {
-                return Err(Error::UnquotableCharacter(ch))
+                return Err(Error::UnquotableCharacter(ch));
             }
         } else {
+            if ascii_only {
+                return Err(Error::NonUsAsciiInput);
+            }
             ascii = false;
+
+            //any on us-ascii char is valid qtext
             out.push(ch);
         }
     }
-    out.push('"');
-
-    Ok((QuotedStringType::from_is_ascii(ascii), out))
+    Ok(ascii)
 }
 
 /// quotes the input string if needed(RFC 5322/6532/822/2045)
@@ -153,49 +166,30 @@ pub fn quote_if_needed<'a, FN>(
         return Ok((QuotedStringType::from_is_ascii(ascii), Cow::Borrowed(input)))
     }
 
-    let (ascii, out) = _quote(input, ascii, quoted_string_type, offset)?;
+    let (rest_is_ascii, out) = quote_str_from(input, quoted_string_type, offset)?;
 
-    Ok( (QuotedStringType::from_is_ascii(ascii), Cow::Owned(out)) )
+    Ok( (QuotedStringType::from_is_ascii(ascii & rest_is_ascii), Cow::Owned(out)) )
 }
 
-fn _quote(
+/// quotes the input string assuming all chars before the offset do not need quoting
+///
+/// this is usefull in combination with a algorithm which checks if a string needs
+/// quoting as you then do not have to check again all chars which where already checked
+/// by the previous algorithm
+fn quote_str_from(
     input: &str,
-    was_ascii: bool,
     quoted_string_type: QuotedStringType,
     start_escape_check_from: usize
 ) -> Result<(bool, String)>
 {
     let ascii_only = quoted_string_type == QuotedStringType::AsciiOnly;
-    debug_assert!(!(ascii_only && !was_ascii));
 
     let (ok, rest) = input.split_at(start_escape_check_from);
     //just guess half of the remaining chars needs escaping
     let mut out = String::with_capacity((rest.len() as f64 * 1.5) as usize);
     out.push('\"');
     out.push_str(ok);
-
-    let mut ascii = was_ascii;
-    for ch in rest.chars() {
-        let kind = Charset::lookup(ch);
-        if kind.is_ascii() {
-            if kind.is(rfc5322::QTextWs) {
-                out.push(ch)
-            } else if ch == '"' || ch == '\\' {
-                out.push('\\');
-                out.push(ch);
-            } else {
-                return Err(Error::UnquotableCharacter(ch));
-            }
-        } else {
-            if ascii_only {
-                return Err(Error::NonUsAsciiInput);
-            }
-            ascii = false;
-
-            //any on us-ascii char is valid qtext
-            out.push(ch);
-        }
-    }
+    let ascii = quote_inner(rest, ascii_only, &mut out)?;
     out.push( '"' );
     Ok((ascii, out))
 }
