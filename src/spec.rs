@@ -96,6 +96,11 @@ pub trait QuotedStringSpec: Clone {
 /// Additionally to validation instances of this type can be used to "on the fly" trace
 /// additional information when a string is iterated when, e.g. parsing or quoting it.
 /// A simple example for this is to keep track if a input is us-ascii only.
+///
+/// # Usage
+///
+/// This trait meant to be implemented in context of an `QuotedStringSpec` implementation
+/// and is used by function of this crate for their specification specific behaviour.
 pub trait QuotedValidator: Clone {
     /// carry over of the Error type of `QuotedStringSpec`(
     type Err;
@@ -123,17 +128,17 @@ pub trait QuotedValidator: Clone {
     fn validate_next_char(&mut self, ch: char) -> ValidationResult<Self::Err>;
 
 
-    /// ends the validation, use to check if e.g. it ends with "\r\n" missing a following " " or
-    /// "\t"
+    /// ends the validation, use to check if e.g. it ends with `"\r\n"` missing a following `" "` or
+    /// `"\t"`
     fn end_validation(&mut self) -> Result<(), Self::Err>;
 
     /// checks if the char is valid in a quoted-pair
     ///
     /// by default it call `validate_next_char` and checks if the char
-    /// is either not invalid (i.e. any qtext, ws, quotable or '\\')
+    /// is not invalid (i.e. any qtext, ws, quotable or `'\\'`)
     ///
-    /// This can be overridden to only allow quoted-pair for e.g. '"' and '\\',
-    /// but forbit any "unnecessary" quoted-pairs.
+    /// This can be overridden to only allow quoted-pair for e.g. `'"'` and `'\\'`,
+    /// but forbid any "unnecessary" quoted-pairs like e.g. `"\\a"`.
     #[inline]
     fn validate_is_quotable(&mut self, ch: char) -> Result<(), Self::Err> {
         match self.validate_next_char(ch) {
@@ -149,6 +154,11 @@ pub trait QuotedValidator: Clone {
 /// This is used to determine if a string needs to be represented as a quoted-string, or
 /// if it can be represented directly. E.g. a Media Type parameter value of `abc` can be
 /// represented directly without needing a quoted string
+///
+/// # Usage
+///
+/// This trait meant to be implemented in context of an `QuotedStringSpec` implementation
+/// and is used by function of this crate for their specification specific behaviour.
 pub trait UnquotedValidator: Clone {
     /// carry over of the Error type of `QuotedStringSpec`
     type Err;
