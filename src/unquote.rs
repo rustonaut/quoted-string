@@ -6,7 +6,7 @@ use utils::strip_quotes;
 
 ///
 //TODO doc that it assumes valid quoted strings
-pub fn quoted_string_to_content<'a, Spec:QuotedStringSpec>(
+pub fn to_content<'a, Spec:QuotedStringSpec>(
     quoted_string: &'a str
 ) -> Result<Cow<'a, str>, Spec::Err>
 {
@@ -117,62 +117,62 @@ fn scan_unchanged<Spec: QuotedStringSpec>(
 mod test {
     use test_utils::*;
     use std::borrow::Cow;
-    use super::quoted_string_to_content;
+    use super::to_content;
 
     #[test]
     fn no_quotes() {
-        let res = quoted_string_to_content::<TestSpec>("noquotes");
+        let res = to_content::<TestSpec>("noquotes");
         assert_eq!(res, Err(TestError::QuotesMissing));
     }
 
     #[test]
     fn unnecessary_quoted() {
-        let res = quoted_string_to_content::<TestSpec>(r#""simple""#).unwrap();
+        let res = to_content::<TestSpec>(r#""simple""#).unwrap();
         assert_eq!(res, Cow::Borrowed("simple"))
     }
 
     #[test]
     fn quoted_but_no_quoted_pair() {
-        let res = quoted_string_to_content::<TestSpec>(r#""abc def""#).unwrap();
+        let res = to_content::<TestSpec>(r#""abc def""#).unwrap();
         assert_eq!(res, Cow::Borrowed("abc def"))
     }
 
     #[test]
     fn with_quoted_pair() {
-        let res = quoted_string_to_content::<TestSpec>(r#""a\"b""#).unwrap();
+        let res = to_content::<TestSpec>(r#""a\"b""#).unwrap();
         let expected: Cow<'static, str> = Cow::Owned(r#"a"b"#.into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn with_multiple_quoted_pairs() {
-        let res = quoted_string_to_content::<TestSpec>(r#""a\"\bc\ d""#).unwrap();
+        let res = to_content::<TestSpec>(r#""a\"\bc\ d""#).unwrap();
         let expected: Cow<'static, str> = Cow::Owned(r#"a"bc d"#.into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn empty() {
-        let res = quoted_string_to_content::<TestSpec>(r#""""#).unwrap();
+        let res = to_content::<TestSpec>(r#""""#).unwrap();
         assert_eq!(res, Cow::Borrowed(""))
     }
 
     #[test]
     fn strip_non_semantic_ws() {
-        let res = quoted_string_to_content::<TestSpec>("\"hy \nthere\"").unwrap();
+        let res = to_content::<TestSpec>("\"hy \nthere\"").unwrap();
         let expected: Cow<'static, str> = Cow::Owned("hy there".into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn tailing_escape() {
-        let res = quoted_string_to_content::<TestSpec>(r#""ab\""#);
+        let res = to_content::<TestSpec>(r#""ab\""#);
         assert_eq!(res, Err(TestError::TailingEscape));
     }
 
     #[test]
     fn missing_escape() {
-        let res = quoted_string_to_content::<TestSpec>("\"a\"\"");
+        let res = to_content::<TestSpec>("\"a\"\"");
         assert_eq!(res, Err(TestError::EscapeMissing));
     }
 
