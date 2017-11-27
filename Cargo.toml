@@ -16,6 +16,4 @@ categories    = ["encoding"]
 travis-ci = { repository = "1aim/quoted-string", branch = "master" }
 maintenance = { status = "actively-developed" }
 
-[dependencies]
-quick-error = "1.2.1"
-mail-chars = "0.1"
+

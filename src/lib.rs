@@ -26,23 +26,19 @@
 //! all. Adding opt-in support for parts parsing quoted-string is in consideration.
 #![warn(missing_docs)]
 #![cfg_attr(test, deny(warnings))]
-extern crate mail_chars;
 
-#[macro_use]
-extern crate quick_error;
-
-pub use self::iter::{ContentChars, AsciiCaseInsensitiveEq};
-pub use self::unquote::unquote_unchecked;
-pub use self::quote::{
-    QuotedStringType, ValidWithoutQuotationCheck,
+pub use utils::strip_quotes;
+pub use spec::{QuotedStringSpec, UnquotedValidator};
+pub use iter::{ContentChars, AsciiCaseInsensitiveEq};
+pub use unquote::quoted_string_to_content;
+pub use quote::{
     quote, quote_if_needed
 };
 
 #[macro_use]
 mod utils;
-
-/// quoted-string errors
-pub mod error;
+mod spec;
 mod iter;
 mod unquote;
 mod quote;
+pub mod test_utils;
