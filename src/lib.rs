@@ -1,5 +1,5 @@
 //! This crate provides utilities to handle quoted strings like such appearing
-//! in Mediat Types (both MIME (i.e. Mail) and HTTP). As there are many small but significant
+//! in Media Types (both MIME (i.e. Mail) and HTTP). As there are many small but significant
 //! differences in different specifications this crate does not provide
 //! a specific implementation. Instead a `QuotedStringSpec` trait is
 //! exposed. Implementing it (on zero-sized structs) should allow the

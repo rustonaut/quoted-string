@@ -75,12 +75,44 @@ pub trait QuotedStringSpec: Clone {
     fn quoted_string_missing_quotes() -> Self::Err;
 }
 
-//TODO
+/// Used to "validate" a quoted string by calling `validate_next_char` on every char in order
 ///
+/// This method is used by more or less any utility method, e.g. when used with `to_content`
+/// it is used to determine which white spaces are not semantic and should not appear in the
+/// content. When used with quoting it's used do determine if a character can be represented
+/// in a quoted-string and if it is needed to represent it through a quoted-pair, etc.
+///
+/// While this trait can be implemented on a zero sized struct for most specifications,
+/// some need some context to validate the next char, e.g. in a MIME header quoted strings
+/// can contain (not semantic) `"\r\n "` sequences while any other appearence of "\r" and "\n"
+/// is not allowed (except in the obsolete grammar in quoted pair).
+///
+/// Note that while the trait has to keep track of the anny additional context, the context
+/// wrt. quoted-pairs is done for it. As it is also used to quote chars it's possible that
+/// `validate_next_char` is called with a character only allowed in quoted pairs without beeing
+/// called befor with `'\\'` (which is then added implicity by the quoting function). Any
+/// implementation has to be able to handle this.
+///
+/// Additionally to validation instances of this type can be used to "on the fly" trace
+/// additional information when a string is iterated when, e.g. parsing or quoting it.
+/// A simple example for this is to keep track if a input is us-ascii only.
 pub trait QuotedValidator: Clone {
     /// carry over of the Error type of `QuotedStringSpec`(
     type Err;
 
+    /// validate if the char is valid given the context stored in this instance
+    ///
+    /// (there might be no context, i.e. if this is implented on a zero-sized type, which
+    ///  is fine for most specifications)
+    ///
+    /// # Usage
+    ///
+    /// Consumers of this trait have to make sure to:
+    ///
+    /// 1. call `validate_next_char` in a sequence, char by char not skipping any char
+    ///    (except '\\' of a quoted pair if used to quote a string)
+    /// 2. call `end_validation` after they are done
+    /// 3. do nothing more with it afterwards (i.e. they need a new instance for a new validation)
     ///
     /// # Implementation
     ///
@@ -111,8 +143,12 @@ pub trait QuotedValidator: Clone {
     }
 }
 
-//TODO
+
+/// Used to "validate" a string by calling `validate_next_char` on every char in order
 ///
+/// This is used to determine if a string needs to be represented as a quoted-string, or
+/// if it can be represented directly. E.g. a Media Type parameter value of `abc` can be
+/// represented directly without needing a quoted string
 pub trait UnquotedValidator: Clone {
     /// carry over of the Error type of `QuotedStringSpec`
     type Err;
@@ -139,7 +175,7 @@ pub trait UnquotedValidator: Clone {
     /// the state of the used `UnquotedValidator` implementation.
     fn validate_next_char(&mut self, ch: char) -> bool;
 
-    /// called after validating a input, returns if the input is valid
+    /// called after validating a input, returns true if the input is valid
     ///
     /// Some thinks can not be validated with only `validate_next_char` i.e. if a input can contain
     /// `"."` but it is not allowed to end with `"."`
