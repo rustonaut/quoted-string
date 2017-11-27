@@ -1,48 +1,70 @@
 quoted-string [![Crates.io](https://img.shields.io/crates/v/quoted-string.svg)](https://crates.io/crates/quoted-string) [![quoted-string](https://docs.rs/quoted-string/badge.svg)](https://docs.rs/quoted-string) [![License](https://img.shields.io/badge/License-MIT%2FApache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Build Status](https://travis-ci.org/1aim/quoted-string.svg?branch=master)](https://travis-ci.org/1aim/quoted-string)
 =============
-This crate provides utilities to handle quoted strings as they appear in
-multiple mail and web related RFCs. While it is mainly based on RFC5322
-(Internet Message Format).  It also supports Utf8 based on RFC6532 (optional)
-and is compatible with quoted-strings as they appear in mime types (including
-in HTTP/1.1 context).
 
-What it currently does not support are soft-line breaks of RFC5322 and the
-obsolete parts of the syntax.
+This crate provides utilities to handle quoted strings like such appearing
+in Mediat Types (both MIME (i.e. Mail) and HTTP). As there are many small but significant
+ differences in different specifications this crate does not provide
+a specific implementation. Instead a `QuotedStringSpec` trait is
+exposed. Implementing it (on zero-sized structs) should allow the
+usage with any quoted-string specification.   
 
-Grammar
--------
-```no-rust
-quoted-string   = DQUOTE *( *WSP qcontent) *WSP DQUOTE
-WSP = ' ' / '\t'
-qcontent = qtext / quoted-pair
-qtext = %d33 / %d35-91 / %d93-126 ; printable us-ascii chars not including '\\' and '"'
-quoted-pair = ("\" (VCHAR / WSP)) ; VCHAR are printable us-ascii chars
-```
-
-The obsolete syntax is currently **not supported**. Differences would be:
-
-1. it would allow CTL's in qtext
-2. it would allow quoted pairs to escape CTL's, `'\0'`, `'\n'`, `'\r'` 
-   
-Nevertheless this part of the syntax is obsolete and should not be generated at
-all. Adding opt-in support for parts parsing quoted-string is in consideration. 
 
 Available functionality contains
 --------------------------------
-- `quote`/`quote_if_needed`: quotes content (if needed) allowing the usage of a
-  custom context to define when quoting is needed (e.g. in some places a empty
-  quoted-string is ok but no empty unquoted-string).  For optimization
-  `quote_if_needed` returns a `Cow<'a, str>`.
+- `quote_if_needed` (&`quote`): quotes content (if needed), the `UnquotedValidator` part
+  of `QuotedStringSpec` can be used to specify which values are valid without needing 
+  to be representated as a quoted string. E.g. in a Media Type a parameter value of `abc` can
+  and should be directly represented on benefit of `quoted_if_needed` is that it returns a
+  `Cow` so the string is only copied if it actually needs to be represented as quoted string.
 
-- `unquote`: retrieve the content of a quoted string by unquoting it, also
-  returns a `Cow<'a, str>` as simple string slicing can be used as long as no
-  `quoted-pair` appears.
+- `to_content`: retrieve the _content_ of a quoted string which means that the
+  surrounding `'"'` quotes will be removed and any quoted-pair (e.g. `"\\\""`/`r#"\""#`) will be
+  replaced with it's value. This function returns `Cow::Borrowed` if there are no quoted-pairs 
+  preventing needless allocations. 
  
 - `ContentChars`: an iterator over the chars of the content of a quoted-string,
-  i.e. it will strip the surrounding `DQUOTE`s and will on the fly unquote
+  i.e. it will strip the surrounding `DQUOTE`s and will ()on the fly) unquote
   quoted-pais not needing any extra memory allocations. This can be used to
   _semantically_ compare two quoted strings regardless of how they used
   `quoted-pair`s, it implements `Eq`.
+  
+- `parse` (&`validate`):  parses a quoted-string positioned at the start of the input.
+  It is written to be easily integrable with `nom` (through does not require `nom`
+  in any way, using it standalone is as easy)
+
+Example
+=======
+
+```rust
+extern crate quoted_string;
+
+// we use a QuotedStringSpec provided for testing here, 
+// not that it's made to hitt some edcases in a simple way 
+// so it does not correspond to any used real Spec
+use quoted_string::test_utils::TestSpec;
+type Spec = TestSpec;
+
+use quoted_string::{parse, quote, quote_if_needed, to_content};
+
+fn main() {
+    let res = parse::<Spec>("\"quoted\\\"st\\ring\"; tail=x").unwrap();
+    let qs = res.quoted_string;
+    assert_eq!(qs, "\"quoted\\\"st\\ring\"");
+    assert_eq!(res.tail, "; tail=x");
+    let content = to_content::<Spec>(qs)
+        .expect("[BUG] to_content is guaranteed to succeed if input is a valid quoted string");
+    assert_eq!(content, "quoted\"string");
+    let (requoted, _meta) = quote::<Spec>(&*content)
+        .expect("[BUG] quote is guaranteed to succeed if the input is representable in a quoted string");
+    assert_eq!(requoted, "\"quoted\\\"string\"");
+    
+    // TestSpec specifies us-ascii words with 6 letters need no quoting
+    let (out, _meta) = quote_if_needed::<Spec>("simple").unwrap();
+    assert_eq!(&*out, "simple");
+}
+
+
+```
 
 License
 =======
@@ -58,3 +80,11 @@ Contribution
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall
 be dual licensed as above, without any additional terms or conditions.
+
+
+Change Log
+==========
+
+- **0.3.0**: Made the crate independent of any specific quoted-string specification by
+  introducing `QuotedStringSpec` as there are to many differences between quoted-string's
+  in Media Type occurring in HTTP and thus occurring in MIME (Mail)  

@@ -5,11 +5,11 @@ version = "0.3.0"
 authors = ["Philipp Korber <p.korber@1aim.com>"]
 license = "MIT/Apache-2.0"
 
-description   = "Utilities to handle quoted strings (in mail, MIME types, ..)"
+description   = "Specification independent utilities to handle quoted strings (in Mail, MIME types, ..)"
 readme        = "README.md"
 documentation = "https://docs.rs/quoted-string"
 repository    = "https://github.com/1aim/quoted-string"
-keywords      = ["mail", "quoted", "mime", "string", "rfc5322"]
+keywords      = ["mail", "quoted", "mime", "string" ]
 categories    = ["encoding"]
 
 [badges]
