@@ -81,12 +81,34 @@ pub trait QuotedValidator: Clone {
     /// carry over of the Error type of `QuotedStringSpec`(
     type Err;
 
+    ///
+    /// # Implementation
+    ///
+    /// Be aware that this method is not only used for parsing & validation but also
+    /// for e.g. quoting string, in which case a this method can be called with a
+    /// quotable char (e.g. `'"'`) _without_ a preceeding call with `'\\'` in valid manner.
+    ///
     fn validate_next_char(&mut self, ch: char) -> ValidationResult<Self::Err>;
 
 
     /// ends the validation, use to check if e.g. it ends with "\r\n" missing a following " " or
     /// "\t"
     fn end_validation(&mut self) -> Result<(), Self::Err>;
+
+    /// checks if the char is valid in a quoted-pair
+    ///
+    /// by default it call `validate_next_char` and checks if the char
+    /// is either not invalid (i.e. any qtext, ws, quotable or '\\')
+    ///
+    /// This can be overridden to only allow quoted-pair for e.g. '"' and '\\',
+    /// but forbit any "unnecessary" quoted-pairs.
+    #[inline]
+    fn validate_is_quotable(&mut self, ch: char) -> Result<(), Self::Err> {
+        match self.validate_next_char(ch) {
+            ValidationResult::Invalid(err) => Err(err),
+            _ => Ok(())
+        }
+    }
 }
 
 //TODO

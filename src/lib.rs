@@ -25,7 +25,7 @@
 //! Nevertheless this part of the syntax is obsolete and should not be generated at
 //! all. Adding opt-in support for parts parsing quoted-string is in consideration.
 #![warn(missing_docs)]
-#![cfg_attr(test, deny(warnings))]
+
 
 pub use utils::strip_quotes;
 pub use spec::{QuotedStringSpec, UnquotedValidator};
@@ -34,6 +34,7 @@ pub use unquote::quoted_string_to_content;
 pub use quote::{
     quote, quote_if_needed
 };
+pub use parse::{validate, parse, Parsed};
 
 #[macro_use]
 mod utils;
@@ -41,4 +42,5 @@ mod spec;
 mod iter;
 mod unquote;
 mod quote;
+mod parse;
 pub mod test_utils;

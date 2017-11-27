@@ -30,7 +30,7 @@ pub struct TestSpec;
 
 /// The type used by `<TestSpec as QuotedStringSpec>::QuotedValidator`
 ///
-/// - it treats only '"' as non qtext, non ws quotable
+/// - it treats '\0' and '"' as non-qtext, non-ws quotable
 /// - qtext are all printable us-ascii chars ('!'...'~')
 /// - semantic ws are ' ' and '\t'
 /// - '\n' is a non-semantic ws
@@ -113,7 +113,7 @@ impl QuotedValidator for TestQuotedValidator {
     fn validate_next_char(&mut self, ch: char) -> ValidationResult<Self::Err> {
         match ch {
             '\\' => ValidationResult::Escape,
-            '"' => ValidationResult::Quotable,
+            '"' | '\0' => ValidationResult::Quotable,
             '!'...'~' => ValidationResult::QText,
             ' ' | '\t' => ValidationResult::SemanticWs,
             '\n' => ValidationResult::NotSemanticWs,
