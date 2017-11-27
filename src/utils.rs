@@ -35,6 +35,15 @@ macro_rules! assert_err {
 /// strips quotes if they exists
 ///
 /// returns None if the input does not start with `"` and ends with `"`
+///
+/// # Example
+/// ```
+/// use quoted_string::strip_quotes;
+/// assert_eq!(strip_quotes("\"a b\""), Some("a b"));
+/// assert_eq!(strip_quotes("a b"), None);
+/// assert_eq!(strip_quotes("\"a b"), None);
+/// assert_eq!(strip_quotes("a b\""), None);
+/// ```
 pub fn strip_quotes(quoted_string: &str) -> Option<&str> {
     let len = quoted_string.len();
     let bytes = quoted_string.as_bytes();

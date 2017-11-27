@@ -3,6 +3,18 @@ use spec::{QuotedStringSpec, QuotedValidator};
 /// validates if input is a valid quoted-string
 ///
 /// in difference to parse it requires the whole input to be one quoted-string
+///
+/// # Example
+///
+/// ```
+/// // use your own spec
+/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::validate;
+///
+/// assert!(validate::<TestSpec>("\"quoted string\""));
+/// assert!(!validate::<TestSpec>("\"not right\"really not"));
+/// ```
+///
 pub fn validate<Spec: QuotedStringSpec>(input: &str) -> bool {
     parse::<Spec>(input)
         .map(|res|res.tail.is_empty())
@@ -21,12 +33,27 @@ pub struct Parsed<'a> {
 /// parse a quoted string starting at the begin of `input` but possible ending earlier
 ///
 /// To check if the whole string is a quoted-string (an nothing more) you have to
-/// additional check if `parsed.rest` is empty.
+/// additional check if `parsed.tail` is empty.
 ///
 /// # Error
 ///
 /// a error and the char index where it was triggered is returned if the input does not start
 /// with a valid quoted-string.
+///
+/// # Example
+///
+/// ```
+/// // use your own Spec
+/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::{parse, Parsed};
+///
+/// let parsed = parse::<TestSpec>("\"list of\"; \"quoted strings\"").unwrap();
+/// assert_eq!(parsed, Parsed {
+///     quoted_string: "\"list of\"",
+///     tail:  "; \"quoted strings\""
+/// });
+/// ```
+///
 pub fn parse<Spec: QuotedStringSpec>(input: &str) -> Result<Parsed, (usize, Spec::Err)> {
     use spec::ValidationResult::*;
 

@@ -32,12 +32,22 @@ pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
 /// enables to compare a quoted string with a string representing the
 /// content of a quoted string.
 ///
+/// While it does not explicity checks for validity of the quoted-string it iterates over
+/// it still might notice that it is invalid as such it returns results (i.e. let the
+/// consumer decide how to handle the error). If you are fine with a panic if the
+/// `ContentChars` iterator was created from a invalid quoted-string, then just
+/// use `.map(|r| r.expect("[BUG] ContentChars was created from malformed quoted-string")`.
+/// (Note that the the only 2two thinks the current implementation does not check are
+///  if a char in a quoted-pair is valid (= is quotable) and it does not call `end_validation`
+///  on the internally used `QuotedValidator`, but thats a implementation detail for now)
+///
 /// # Example
 ///
 /// ```
-/// # use quoted_string::ContentChars;
-/// use quoted_string::AsciiCaseInsensitiveEq;
+/// // use your own Spec instead
 /// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::ContentChars;
+/// use quoted_string::AsciiCaseInsensitiveEq;
 ///
 /// let quoted_string = r#""ab\"\ c""#;
 /// let cc = ContentChars::<TestSpec>::from_str_unchecked(quoted_string).unwrap();

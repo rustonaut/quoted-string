@@ -13,6 +13,18 @@ use spec::{QuotedStringSpec, QuotedValidator, UnquotedValidator, ValidationResul
 ///
 /// The validator is returned so that consumers can collect additional information if needed
 /// without iterating over the input again, e.g. if the input was pure us-ascii.
+///
+/// # Example
+///
+/// ```
+/// // use your own Spec instead
+/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::quote;
+///
+/// let (qs, _) = quote::<TestSpec>("some\"text").unwrap();
+/// assert_eq!(qs, "\"some\\\"text\"");
+/// ```
+///
 #[inline]
 pub fn quote<Spec: QuotedStringSpec>(
     input: &str
@@ -73,6 +85,26 @@ fn quote_char_into<Spec: QuotedStringSpec>(
 /// The unquoted validator (and the quoted one if it was used) are returned
 /// to allow the collection and extraction of additional information if needed.
 /// I.e. if a string was ascii.
+///
+/// # Example
+///
+/// ```
+/// # use std::borrow::Cow;
+/// // use your own Spec
+/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::quote_if_needed;
+///
+/// let (quoted, _meta) = quote_if_needed::<TestSpec>("simple")
+///     .expect("only fails if input can not be represented as quoted string with used Spec");
+///
+/// // The used spec states a 6 character us-ascii word does not need to be represented as
+/// // quoted string
+/// assert_eq!(quoted, Cow::Borrowed("simple"));
+///
+/// let (quoted2, _meta) = quote_if_needed::<TestSpec>("more complex").unwrap();
+/// let expected: Cow<'static, str> = Cow::Owned("\"more complex\"".into());
+/// assert_eq!(quoted2, expected);
+/// ```
 ///
 pub fn quote_if_needed<'a, Spec: QuotedStringSpec>(
     input: &'a str,

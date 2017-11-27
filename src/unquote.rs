@@ -4,8 +4,28 @@ use super::iter::ContentChars;
 
 use utils::strip_quotes;
 
+/// converts a quoted string into it's content
 ///
-//TODO doc that it assumes valid quoted strings
+/// This methods retrieves the content of a quoted-string, which means it strips the
+/// surrounding `'"'`-quoted, converts quoted-pairs into the values they represent and
+/// strips not-semantic ws.
+///
+/// # Example
+/// ```
+/// # use std::borrow::Cow;
+/// //use your own Spec in practise
+/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::to_content;
+///
+/// let content = to_content::<TestSpec>("\"ab\\\"c\nde\"")
+///     .expect("only fails if the input is not a quoted string");
+/// assert_eq!(&*content, "ab\"cde");
+///
+/// let content = to_content::<TestSpec>("\"simple\"").unwrap();
+/// // to content will just use slicing to strip `'"'`-quotes if possible
+/// assert_eq!(content, Cow::Borrowed("simple"));
+/// ```
+///
 pub fn to_content<'a, Spec:QuotedStringSpec>(
     quoted_string: &'a str
 ) -> Result<Cow<'a, str>, Spec::Err>
