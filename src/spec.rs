@@ -137,7 +137,9 @@ pub trait QuotedValidator: Clone {
 
     /// ends the validation, use to check if e.g. it ends with `"\r\n"` missing a following `" "` or
     /// `"\t"`
-    fn end_validation(&mut self) -> Result<(), Self::Err>;
+    fn end_validation(&mut self) -> Result<(), Self::Err> {
+        Ok(())
+    }
 
     /// checks if the char is valid in a quoted-pair
     ///
@@ -199,5 +201,7 @@ pub trait UnquotedValidator: Clone {
     /// char sequence was passed to `validate_next_char` in order before and `validate_next_char`
     /// always returned `true` if this is not the case the return value can be unreliable.
     ///
-    fn end_validation(&mut self) -> bool;
+    fn end_validation(&mut self) -> bool {
+        true
+    }
 }

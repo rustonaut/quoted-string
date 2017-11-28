@@ -97,3 +97,4 @@ Change Log
     - Renamed `NotSemanticWs` to `NotSemantic`
     - Renamed `Quotable` to `NeedsQuotedPair`
     - Removed unnecessary `Err` Associated Type from `UnquotedValidator`
+    - added default impl for `end_validation` of `UnquotedValidator` and `QuotedValidator`
