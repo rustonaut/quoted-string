@@ -112,11 +112,10 @@ impl QuotedValidator for TestQuotedValidator {
     #[inline]
     fn validate_next_char(&mut self, ch: char) -> ValidationResult<Self::Err> {
         match ch {
-            '\\' => ValidationResult::Escape,
-            '"' | '\0' => ValidationResult::Quotable,
+            '\\' | '"' | '\0' => ValidationResult::Quotable,
             '!'...'~' => ValidationResult::QText,
             ' ' | '\t' => ValidationResult::SemanticWs,
-            '\n' => ValidationResult::NotSemanticWs,
+            '\n' => ValidationResult::NotSemantic,
             _ => ValidationResult::Invalid(TestError::Unquoteable)
         }
     }

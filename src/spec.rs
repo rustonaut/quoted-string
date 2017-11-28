@@ -1,17 +1,24 @@
 use std::error::Error;
 
-//TODO doc call at last one validate_* method per char
+/// result of validating a quoted char representing what kind of char it is
+///
+/// Not that this the variant of this enum differ to there
+/// grammar counterparts as they are split in distinct groups,
+/// e.g. for most grammar a quotable char is a char which is not
+/// `Invalid` (i.e. `QText`, `SemanticWs`, `NotSemantic`, `Escape`, `Quotable`) and
+/// `Quotable` only represents any chare which can be quoted but is not in `QText`,
+/// `*Ws` or `Escape`)
 #[derive(Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub enum ValidationResult<Err> {
     /// a character in qtext
     QText,
-    /// a normal Ws (normally `' '`,`'\t'`)
+    /// a normal whitespace (normally `' '`,`'\t'`)
     SemanticWs,
-    /// a not-semantic ws (i.e. a ws which can/should be stripped depending on context)
-    NotSemanticWs,
-    /// escape character `'\\'`
-    Escape,
-    /// quotable characters _without_ esacape (`'\\'`)
+    /// a not-semantic character (i.e. a ws which can/should be stripped depending on context)
+    /// or a comment
+    NotSemantic,
+    /// quotable characters including `'\\'`, but excluding or any char belonging to another
+    /// variant of this enum
     Quotable,
     /// invalid character e.g. non-us-ascii in us-ascii only context
     Invalid(Err)

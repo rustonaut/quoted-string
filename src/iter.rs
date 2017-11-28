@@ -117,16 +117,18 @@ impl<'a, Spec> Iterator for ContentChars<'a, Spec>
             if let Some(ch) = self.inner.next() {
                 match self.q_validator.validate_next_char(ch) {
                     QText | SemanticWs => return Some(Ok(ch)),
-                    Escape => {
-                        if let Some(ch) = self.inner.next() {
-                            return Some(Ok(ch));
-                        } else {
-                            return Some(Spec::error_for_tailing_escape().map(|_|'\\'));
+                    Quotable => {
+                        if ch == '\\' {
+                            if let Some(ch) = self.inner.next() {
+                                return Some(Ok(ch));
+                            } else {
+                                return Some(Spec::error_for_tailing_escape().map(|_|'\\'));
+                            }
                         }
+                        return Some(Err(Spec::unquoted_quotable_char(ch)));
                     }
-                    Quotable =>  return Some(Err(Spec::unquoted_quotable_char(ch))),
                     Invalid(err) => return Some(Err(err)),
-                    NotSemanticWs => continue,
+                    NotSemantic => continue,
                 }
             } else {
                 return None;

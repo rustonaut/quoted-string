@@ -83,12 +83,13 @@ pub fn parse<Spec: QuotedStringSpec>(input: &str) -> Result<Parsed, (usize, Spec
             match q_validator.validate_next_char(ch) {
                 QText |
                 SemanticWs |
-                NotSemanticWs => {},
-                Escape => {
-                    last_was_escape = true
-                }
+                NotSemantic => {}
                 Quotable => {
-                    return Err((idx, Spec::unquoted_quotable_char(ch)))
+                    if ch == '\\' {
+                        last_was_escape = true
+                    } else {
+                        return Err((idx, Spec::unquoted_quotable_char(ch)))
+                    }
                 }
                 Invalid(err) => {
                     return Err((idx, err))

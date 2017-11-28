@@ -8,7 +8,7 @@ use utils::strip_quotes;
 ///
 /// This methods retrieves the content of a quoted-string, which means it strips the
 /// surrounding `'"'`-quoted, converts quoted-pairs into the values they represent and
-/// strips not-semantic ws.
+/// strips not-semantic character.
 ///
 /// # Example
 /// ```
@@ -93,45 +93,31 @@ fn scan_unchanged<Spec: QuotedStringSpec>(
         match q_validator.validate_next_char(ch) {
             QText | SemanticWs => {},
             Quotable => {
+                if ch == '\\' {
+                    return Ok(ScanResult::ValidUpTo {
+                        split_idx: idx,
+                        last_ch: ch,
+                        last_was: LastWas::Escape
+                    })
+                }
                 return Err(Spec::unquoted_quotable_char(ch));
             }
-            Invalid(err) => {
-                return Err(err);
-            }
-            Escape => {
-                return Ok(ScanResult::ValidUpTo {
-                    split_idx: idx,
-                    last_ch: ch,
-                    last_was: LastWas::Escape
-                })
-            }
-            NotSemanticWs => {
+            NotSemantic => {
                 return Ok(ScanResult::ValidUpTo {
                     split_idx: idx,
                     last_ch: ch,
                     last_was: LastWas::NotSemanticWs
                 })
             }
+            Invalid(err) => {
+                return Err(err);
+            }
+
         }
     }
     Ok(ScanResult::ValidUnchanged)
 }
 
-// / undoes quoting of given input assuming it is a valid quoted-string
-// /
-// / # Example
-// / ```
-// / # use std::borrow::Cow;
-// / # use quoted_string::unquote_unchecked;
-// / let unquoted = unquote_unchecked(r#""simple""#);
-// / assert_eq!(unquoted, Cow::Borrowed("simple"));
-// /
-// / let unquoted = unquote_unchecked(r#""needs quoting""#);
-// / assert_eq!(unquoted, Cow::Borrowed("needs quoting"));
-// /
-// / let unquoted = unquote_unchecked(r#""less\"simple""#);
-// / assert_eq!(unquoted, Cow::Borrowed(r#"less"simple"#));
-// / ```
 
 #[cfg(test)]
 mod test {
