@@ -87,4 +87,9 @@ Change Log
 
 - **0.3.0**: Made the crate independent of any specific quoted-string specification by
   introducing `QuotedStringSpec` as there are to many differences between quoted-string's
-  in Media Type occurring in HTTP and thus occurring in MIME (Mail)  
+  in Media Type occurring in HTTP and thus occurring in MIME (Mail)
+  
+- **0.3.1**: Noticed that `ValidationResult` was not exposed, but also didn't got a private
+  type in public interface warning... fixed that
+  
+-   
