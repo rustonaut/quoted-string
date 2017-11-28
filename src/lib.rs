@@ -11,7 +11,7 @@
 
 
 pub use utils::strip_quotes;
-pub use spec::{QuotedStringSpec, UnquotedValidator, QuotedValidator};
+pub use spec::{QuotedStringSpec, UnquotedValidator, QuotedValidator, ValidationResult};
 pub use iter::{ContentChars, AsciiCaseInsensitiveEq};
 pub use unquote::to_content;
 pub use quote::{
