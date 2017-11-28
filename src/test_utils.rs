@@ -128,8 +128,6 @@ impl QuotedValidator for TestQuotedValidator {
 
 impl UnquotedValidator for TestUnquotedValidator {
 
-    type Err = TestError;
-
     #[inline]
     fn validate_next_char(&mut self, ch: char) -> bool {
         self.len += 1;

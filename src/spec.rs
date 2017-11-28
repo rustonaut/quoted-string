@@ -45,7 +45,7 @@ pub trait QuotedStringSpec: Clone {
     /// Error type which can be returned if thinks can not be quoted/parsed/etc.
     type Err: Error;
     /// Validator to find out if a value can be represented without quotation
-    type UnquotedValidator: UnquotedValidator<Err=Self::Err>;
+    type UnquotedValidator: UnquotedValidator;
     /// Validator to find out if a value can be represented in a quoted string
     type QuotedValidator: QuotedValidator<Err=Self::Err>;
 
@@ -167,8 +167,6 @@ pub trait QuotedValidator: Clone {
 /// This trait meant to be implemented in context of an `QuotedStringSpec` implementation
 /// and is used by function of this crate for their specification specific behaviour.
 pub trait UnquotedValidator: Clone {
-    /// carry over of the Error type of `QuotedStringSpec`
-    type Err;
 
     /// returns true if the next char in context the previoud chars is valid without quoting
     ///

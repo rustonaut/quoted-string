@@ -92,6 +92,8 @@ Change Log
 - **0.3.1**: Noticed that `ValidationResult` was not exposed, but also didn't got a private
   type in public interface warning... fixed that
   
-- **0.4.0**: Removed `Escape` from `ValidationResult`. Renamed `NotSemanticWs` to `NotSemantic`
-  and `Quotable` to `NeedsQuotedPair` which is a interface change, so a braking change version
-  bump.  
+- **0.4.0**: 
+    - Removed `Escape` from `ValidationResult` 
+    - Renamed `NotSemanticWs` to `NotSemantic`
+    - Renamed `Quotable` to `NeedsQuotedPair`
+    - Removed unnecessary `Err` Associated Type from `UnquotedValidator`
