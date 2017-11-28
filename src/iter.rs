@@ -117,7 +117,7 @@ impl<'a, Spec> Iterator for ContentChars<'a, Spec>
             if let Some(ch) = self.inner.next() {
                 match self.q_validator.validate_next_char(ch) {
                     QText | SemanticWs => return Some(Ok(ch)),
-                    Quotable => {
+                    NeedsQuotedPair => {
                         if ch == '\\' {
                             if let Some(ch) = self.inner.next() {
                                 return Some(Ok(ch));

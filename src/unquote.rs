@@ -92,7 +92,7 @@ fn scan_unchanged<Spec: QuotedStringSpec>(
     for (idx, ch) in input.char_indices() {
         match q_validator.validate_next_char(ch) {
             QText | SemanticWs => {},
-            Quotable => {
+            NeedsQuotedPair => {
                 if ch == '\\' {
                     return Ok(ScanResult::ValidUpTo {
                         split_idx: idx,

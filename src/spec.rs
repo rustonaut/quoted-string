@@ -5,9 +5,9 @@ use std::error::Error;
 /// Not that this the variant of this enum differ to there
 /// grammar counterparts as they are split in distinct groups,
 /// e.g. for most grammar a quotable char is a char which is not
-/// `Invalid` (i.e. `QText`, `SemanticWs`, `NotSemantic`, `Escape`, `Quotable`) and
-/// `Quotable` only represents any chare which can be quoted but is not in `QText`,
-/// `*Ws` or `Escape`)
+/// `Invalid` (i.e. `QText`, `SemanticWs`, `NotSemantic`,  `NeedsQuotedPair`) and
+/// `NeedsQuotedPair` only represents any chare which can be quoted but is not in `QText`,
+/// `SemanticWs` or `NotSemantic`)
 #[derive(Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub enum ValidationResult<Err> {
     /// a character in qtext
@@ -19,7 +19,7 @@ pub enum ValidationResult<Err> {
     NotSemantic,
     /// quotable characters including `'\\'`, but excluding or any char belonging to another
     /// variant of this enum
-    Quotable,
+    NeedsQuotedPair,
     /// invalid character e.g. non-us-ascii in us-ascii only context
     Invalid(Err)
 }
@@ -65,7 +65,7 @@ pub trait QuotedStringSpec: Clone {
     /// is called if a non a char appears with is validated as quotable but was not preceeded by an escape
     ///
     /// While all chars like QText and SemanticWs can also be quoted they are not part of the
-    /// ValidatorResult::Quotable category as they are covered with other enum variants.
+    /// `ValidatorResult::NeedsQuotedPair` category as they are covered with other enum variants.
     fn unquoted_quotable_char(ch: char) -> Self::Err;
 
     /// is called if a tailing escape is detected

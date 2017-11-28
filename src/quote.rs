@@ -69,7 +69,7 @@ fn quote_char_into<Spec: QuotedStringSpec>(
         QText | SemanticWs | NotSemantic => {
             out.push(ch)
         }
-        Quotable => {
+        NeedsQuotedPair => {
             out.push('\\');
             out.push(ch);
         }
@@ -160,7 +160,7 @@ fn scan_ahead<Spec: QuotedStringSpec>(
                 //is also a valid quoted string if dquotes are added, validate this with debug assertions
                 match q_validator.validate_next_char(ch) {
                     QText | SemanticWs | NotSemantic |
-                    Quotable => {},
+                    NeedsQuotedPair => {},
                     Invalid(_err) => {
                         panic!(concat!("[BUG/QuotedStringSpec/custom_impl]",
                             " valid outside of quoting but not inside of quoting)"));

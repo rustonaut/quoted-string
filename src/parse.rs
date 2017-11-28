@@ -84,7 +84,7 @@ pub fn parse<Spec: QuotedStringSpec>(input: &str) -> Result<Parsed, (usize, Spec
                 QText |
                 SemanticWs |
                 NotSemantic => {}
-                Quotable => {
+                NeedsQuotedPair => {
                     if ch == '\\' {
                         last_was_escape = true
                     } else {
