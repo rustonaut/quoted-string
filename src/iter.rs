@@ -1,10 +1,8 @@
 use std::str::Chars;
 use std::iter::Iterator;
 use std::cmp::{ PartialEq, Eq };
-use std::marker::PhantomData;
 
-use spec::{QuotedStringSpec, QuotedValidator, };
-use utils::strip_quotes;
+use spec::{ParsingImpl, ScanAutomaton, PartialCodePoint};
 // this import will become unused in future rust versions
 // but won't be removed for now for supporting current
 // rust versions
@@ -45,45 +43,36 @@ pub trait AsciiCaseInsensitiveEq<Rhs: ?Sized> {
 ///
 /// ```
 /// // use your own Spec instead
-/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::test_utils::TestParsingImpl;
 /// use quoted_string::ContentChars;
 /// use quoted_string::AsciiCaseInsensitiveEq;
 ///
 /// let quoted_string = r#""ab\"\ c""#;
-/// let cc = ContentChars::<TestSpec>::from_str_unchecked(quoted_string).unwrap();
+/// let cc = ContentChars::<TestParsingImpl>::from_str(quoted_string);
 /// assert_eq!(cc, "ab\" c");
 /// assert!(cc.eq_ignore_ascii_case("AB\" c"));
 /// assert_eq!(cc.collect::<Result<Vec<_>,_>>().unwrap().as_slice(), &[ 'a', 'b', '"', ' ', 'c' ] );
 ///
 /// ```
 #[derive(Debug, Clone)]
-pub struct ContentChars<'a, Spec: QuotedStringSpec> {
+pub struct ContentChars<'a, Impl: ParsingImpl> {
     inner: Chars<'a>,
-    q_validator: Spec::QuotedValidator,
-    marker: PhantomData<Spec>
+    automaton: ScanAutomaton<Impl>
 }
 
-impl<'s, Spec> ContentChars<'s, Spec>
-    where Spec: QuotedStringSpec
+impl<'s, Impl> ContentChars<'s, Impl>
+    where Impl: ParsingImpl
 {
 
     /// creates a char iterator over the content of a quoted string
     ///
     /// the quoted string is _assumed_ to be valid and not explicitely checked for validity
     /// but because of the way unquoting works a number of error can be detected
-    ///
-    /// # Error
-    /// if the string does not start and end with `'"'` a error is returned as
-    /// the surrounding `'"'` are stripped in the constructor
-    pub fn from_str_unchecked(quoted: &'s str) -> Result<Self, Spec::Err> {
-        let content =
-            strip_quotes(quoted)
-            .ok_or_else(Spec::quoted_string_missing_quotes)?;
-
-        let q_validator = Spec::new_quoted_validator();
-        let inner = content.chars();
-
-        Ok(ContentChars{ inner, q_validator, marker: PhantomData })
+    pub fn from_str(quoted: &'s str) -> Self {
+        ContentChars {
+            inner: quoted.chars(),
+            automaton: ScanAutomaton::<Impl>::new()
+        }
     }
 
     /// creates a ContentChars iterator from a str and a QuotedValidator
@@ -97,38 +86,28 @@ impl<'s, Spec> ContentChars<'s, Spec>
     /// (QuotedValidator is zero-sized) then no char had to be used with it.
     pub fn from_parts_unchecked(
         partial_quoted_content: &'s str,
-        q_validator: Spec::QuotedValidator
+        automaton: ScanAutomaton<Impl>
     ) -> Self
     {
         let inner = partial_quoted_content.chars();
-        ContentChars{ inner, q_validator, marker: PhantomData }
+        ContentChars{ inner, automaton }
     }
 }
 
 
-impl<'a, Spec> Iterator for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+impl<'a, Impl> Iterator for ContentChars<'a, Impl>
+    where Impl: ParsingImpl
 {
-    type Item = Result<char, Spec::Err>;
+    type Item = Result<char, Impl::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        use spec::ValidationResult::*;
         loop {
             if let Some(ch) = self.inner.next() {
-                match self.q_validator.validate_next_char(ch) {
-                    QText | SemanticWs => return Some(Ok(ch)),
-                    NeedsQuotedPair => {
-                        if ch == '\\' {
-                            if let Some(ch) = self.inner.next() {
-                                return Some(Ok(ch));
-                            } else {
-                                return Some(Spec::error_for_tailing_escape().map(|_|'\\'));
-                            }
-                        }
-                        return Some(Err(Spec::unquoted_quotable_char(ch)));
-                    }
-                    Invalid(err) => return Some(Err(err)),
-                    NotSemantic => continue,
+                let res = self.automaton.advance(PartialCodePoint::from_code_point(ch as u32));
+                match res {
+                    Err(e) => return Some(Err(e)),
+                    Ok(true)  => return Some(Ok(ch)),
+                    Ok(false) => {},
                 }
             } else {
                 return None;
@@ -144,7 +123,7 @@ impl<'a, Spec> Iterator for ContentChars<'a, Spec>
 
 
 impl<'a, Spec> PartialEq<str> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
 
     #[inline]
@@ -154,7 +133,7 @@ impl<'a, Spec> PartialEq<str> for ContentChars<'a, Spec>
 }
 
 impl<'a, 'b, Spec> PartialEq<ContentChars<'b, Spec>> for &'a str
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq(&self, other: &ContentChars<'b, Spec>) -> bool {
@@ -163,7 +142,7 @@ impl<'a, 'b, Spec> PartialEq<ContentChars<'b, Spec>> for &'a str
 }
 
 impl<'a, 'b, Spec> PartialEq<&'b str> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq(&self, other: &&'b str) -> bool {
@@ -172,7 +151,7 @@ impl<'a, 'b, Spec> PartialEq<&'b str> for ContentChars<'a, Spec>
 }
 
 impl<'a, 'b, Spec> PartialEq<ContentChars<'b, Spec>> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq(&self, other: &ContentChars<'b, Spec>) -> bool {
@@ -180,12 +159,14 @@ impl<'a, 'b, Spec> PartialEq<ContentChars<'b, Spec>> for ContentChars<'a, Spec>
     }
 }
 
-impl<'a, Spec> Eq for ContentChars<'a, Spec> where Spec: QuotedStringSpec {}
+impl<'a, Spec> Eq for ContentChars<'a, Spec>
+    where Spec: ParsingImpl
+{}
 
 
 
 impl<'a, Spec> AsciiCaseInsensitiveEq<str> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq_ignore_ascii_case(&self, other: &str) -> bool {
@@ -194,7 +175,7 @@ impl<'a, Spec> AsciiCaseInsensitiveEq<str> for ContentChars<'a, Spec>
 }
 
 impl<'a, 'b, Spec> AsciiCaseInsensitiveEq<ContentChars<'b, Spec>> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq_ignore_ascii_case(&self, other: &ContentChars<'b, Spec>) -> bool {
@@ -203,7 +184,7 @@ impl<'a, 'b, Spec> AsciiCaseInsensitiveEq<ContentChars<'b, Spec>> for ContentCha
 }
 
 impl<'a, 'b, Spec> AsciiCaseInsensitiveEq<ContentChars<'b, Spec>> for &'a str
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq_ignore_ascii_case(&self, other: &ContentChars<'b, Spec>) -> bool {
@@ -214,7 +195,7 @@ impl<'a, 'b, Spec> AsciiCaseInsensitiveEq<ContentChars<'b, Spec>> for &'a str
 
 
 impl<'a, 'b, Spec> AsciiCaseInsensitiveEq<&'b str> for ContentChars<'a, Spec>
-    where Spec: QuotedStringSpec
+    where Spec: ParsingImpl
 {
     #[inline]
     fn eq_ignore_ascii_case(&self, other: &&'b str) -> bool {
@@ -240,17 +221,18 @@ fn iter_eq<I1, I2, E, FN>(mut left: I1, mut right: I2, cmp: FN) -> bool
 #[cfg(test)]
 mod test {
     use test_utils::*;
+    use error::CoreError;
     use super::{ContentChars, AsciiCaseInsensitiveEq};
 
     #[test]
     fn missing_double_quoted() {
-        let res = ContentChars::<TestSpec>::from_str_unchecked("abcdef");
-        assert_eq!(res, Err(TestError::QuotesMissing));
+        let mut chars = ContentChars::<TestParsingImpl>::from_str("abcdef");
+        assert_eq!(assert_err!(chars.next().unwrap()), CoreError::DoesNotStartWithDQuotes);
     }
 
     #[test]
     fn unnecessary_quoted() {
-        let res = ContentChars::<TestSpec>::from_str_unchecked("\"abcdef\"").unwrap();
+        let res = ContentChars::<TestParsingImpl>::from_str("\"abcdef\"");
         assert_eq!(res.collect::<Result<Vec<_>, _>>().unwrap().as_slice(), &[
             'a', 'b', 'c' ,'d', 'e', 'f'
         ])
@@ -258,7 +240,7 @@ mod test {
 
     #[test]
     fn quoted() {
-        let res = ContentChars::<TestSpec>::from_str_unchecked("\"abc def\"").unwrap();
+        let res = ContentChars::<TestParsingImpl>::from_str("\"abc def\"");
         assert_eq!(res.collect::<Result<Vec<_>, _>>().unwrap().as_slice(), &[
             'a', 'b', 'c', ' ', 'd', 'e', 'f'
         ])
@@ -266,7 +248,7 @@ mod test {
 
     #[test]
     fn with_quoted_pair() {
-        let res = ContentChars::<TestSpec>::from_str_unchecked(r#""abc\" \def""#).unwrap();
+        let res = ContentChars::<TestParsingImpl>::from_str(r#""abc\" \def""#);
         assert_eq!(res.collect::<Result<Vec<_>, _>>().unwrap().as_slice(), &[
             'a', 'b', 'c', '"', ' ', 'd', 'e', 'f'
         ])
@@ -274,7 +256,7 @@ mod test {
 
     #[test]
     fn strip_non_semantic_ws() {
-        let res = ContentChars::<TestSpec>::from_str_unchecked("\"abc\ndef\"").unwrap();
+        let res = ContentChars::<TestParsingImpl>::from_str("\"abc\n\ndef\"");
         assert_eq!(res.collect::<Result<Vec<_>, _>>().unwrap().as_slice(), &[
             'a', 'b', 'c', 'd', 'e', 'f'
         ])
@@ -282,8 +264,8 @@ mod test {
 
     #[test]
     fn ascii_case_insensitive_eq() {
-        let left = ContentChars::<TestSpec>::from_str_unchecked(r#""abc""#).unwrap();
-        let right = ContentChars::<TestSpec>::from_str_unchecked(r#""aBc""#).unwrap();
+        let left = ContentChars::<TestParsingImpl>::from_str(r#""abc""#);
+        let right = ContentChars::<TestParsingImpl>::from_str(r#""aBc""#);
         assert!(left.eq_ignore_ascii_case(&right))
     }
 }

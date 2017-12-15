@@ -7,11 +7,12 @@
 //!
 //!
 //!
-#![warn(missing_docs)]
+//#![warn(missing_docs)]
 
 
-pub use utils::strip_quotes;
-pub use spec::{QuotedStringSpec, UnquotedValidator, QuotedValidator, ValidationResult};
+pub use utils::{
+    strip_quotes,
+};
 pub use iter::{ContentChars, AsciiCaseInsensitiveEq};
 pub use unquote::to_content;
 pub use quote::{
@@ -19,11 +20,13 @@ pub use quote::{
 };
 pub use parse::{validate, parse, Parsed};
 
+
 #[macro_use]
 mod utils;
-mod spec;
+pub mod spec;
 mod iter;
 mod unquote;
 mod quote;
 mod parse;
+pub mod error;
 pub mod test_utils;

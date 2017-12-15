@@ -1,4 +1,4 @@
-use spec::{QuotedStringSpec, QuotedValidator};
+use spec::{ScanAutomaton, ParsingImpl, PartialCodePoint};
 
 /// validates if input is a valid quoted-string
 ///
@@ -8,14 +8,14 @@ use spec::{QuotedStringSpec, QuotedValidator};
 ///
 /// ```
 /// // use your own spec
-/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::test_utils::TestParsingImpl;
 /// use quoted_string::validate;
 ///
-/// assert!(validate::<TestSpec>("\"quoted string\""));
-/// assert!(!validate::<TestSpec>("\"not right\"really not"));
+/// assert!(validate::<TestParsingImpl>("\"quoted string\""));
+/// assert!(!validate::<TestParsingImpl>("\"not right\"really not"));
 /// ```
 ///
-pub fn validate<Spec: QuotedStringSpec>(input: &str) -> bool {
+pub fn validate<Spec: ParsingImpl>(input: &str) -> bool {
     parse::<Spec>(input)
         .map(|res|res.tail.is_empty())
         .unwrap_or(false)
@@ -44,62 +44,40 @@ pub struct Parsed<'a> {
 ///
 /// ```
 /// // use your own Spec
-/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::test_utils::TestParsingImpl;
 /// use quoted_string::{parse, Parsed};
 ///
-/// let parsed = parse::<TestSpec>("\"list of\"; \"quoted strings\"").unwrap();
+/// let parsed = parse::<TestParsingImpl>("\"list of\"; \"quoted strings\"").unwrap();
 /// assert_eq!(parsed, Parsed {
 ///     quoted_string: "\"list of\"",
 ///     tail:  "; \"quoted strings\""
 /// });
 /// ```
 ///
-pub fn parse<Spec: QuotedStringSpec>(input: &str) -> Result<Parsed, (usize, Spec::Err)> {
-    use spec::ValidationResult::*;
+pub fn parse<Impl: ParsingImpl>(input: &str) -> Result<Parsed, (usize, Impl::Error)> {
+    let mut automaton = ScanAutomaton::<Impl>::new();
 
-    let mut q_validator = Spec::new_quoted_validator();
+    for (idx, bch) in input.bytes().enumerate() {
+        automaton.advance(PartialCodePoint::from_utf8_byte(bch))
+            .map_err(|err| (idx, err))?;
 
-    if input.bytes().next() != Some(b'"') {
-        return Err((0, Spec::quoted_string_missing_quotes()));
-    }
-
-    let mut last_was_escape = false;
-    //SLICE_SAFE: returns before if input.len() < 1 || input[1] != '"' i.e. 1.. is valid
-    for (idx, ch) in input.char_indices().skip(1) {
-        if last_was_escape {
-            last_was_escape = false;
-            q_validator.validate_is_quotable(ch)
-                .map_err(|err| (idx, err))?;
-        } else if ch == '"' {
-            let next_char_idx = idx + 1;
-            //SLICE_SAFE: char.len_utf8() == 1, so the next char start at idx+1 if it was the last
-            // char it's the len of the string so in both cases ..next_char_idx and next_char_idx..
-            // are fine
+        if automaton.did_end() {
             return Ok(Parsed {
-                quoted_string: &input[0..next_char_idx],
-                tail: &input[next_char_idx..]
+                //idx+1: idx is the idx of the ending '"' which has a byte len of 1
+                quoted_string: &input[0..idx + 1],
+                tail: &input[idx + 1..]
             })
-        } else {
-            match q_validator.validate_next_char(ch) {
-                QText |
-                SemanticWs |
-                NotSemantic => {}
-                NeedsQuotedPair => {
-                    if ch == '\\' {
-                        last_was_escape = true
-                    } else {
-                        return Err((idx, Spec::unquoted_quotable_char(ch)))
-                    }
-                }
-                Invalid(err) => {
-                    return Err((idx, err))
-                }
-            }
         }
-
     }
-    Err((input.len(), Spec::quoted_string_missing_quotes()))
-
+    // if we reach heare it's a error as the closing '"' is missing.
+    // So .end() will _always_ trigger an error in this position
+    match automaton.end() {
+        Ok(_) =>
+            panic!("[BUG] automaton.did_end() == false but automaton.end() does not trigger error"),
+        Err(err) => {
+            Err((input.len(), err))
+        }
+    }
 }
 
 
@@ -108,64 +86,65 @@ mod test {
 
     mod parse {
         use test_utils::*;
+        use error::CoreError;
         use super::super::parse;
 
         #[test]
         fn parse_simple() {
-            let parsed = parse::<TestSpec>("\"simple\"").unwrap();
+            let parsed = parse::<TestParsingImpl>("\"simple\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"simple\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn parse_with_tail() {
-            let parsed = parse::<TestSpec>("\"simple\"; abc").unwrap();
+            let parsed = parse::<TestParsingImpl>("\"simple\"; abc").unwrap();
             assert_eq!(parsed.quoted_string, "\"simple\"");
             assert_eq!(parsed.tail, "; abc");
         }
 
         #[test]
         fn parse_with_quoted_pairs() {
-            let parsed = parse::<TestSpec>("\"si\\\"m\\\\ple\"").unwrap();
+            let parsed = parse::<TestParsingImpl>("\"si\\\"m\\\\ple\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"si\\\"m\\\\ple\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn parse_with_unnecessary_quoted_pairs() {
-            let parsed = parse::<TestSpec>("\"sim\\p\\le\"").unwrap();
+            let parsed = parse::<TestParsingImpl>("\"sim\\p\\le\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"sim\\p\\le\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn reject_missing_quoted() {
-            let res = parse::<TestSpec>("simple");
-            assert_eq!(res, Err((0, TestError::QuotesMissing)));
+            let res = parse::<TestParsingImpl>("simple");
+            assert_eq!(res, Err((0, CoreError::DoesNotStartWithDQuotes)));
         }
 
         #[test]
         fn reject_tailing_escape() {
-            let res = parse::<TestSpec>("\"simple\\\"");
-            assert_eq!(res, Err((9, TestError::QuotesMissing)));
+            let res = parse::<TestParsingImpl>("\"simple\\\"");
+            assert_eq!(res, Err((9, CoreError::DoesNotEndWithDQuotes)));
         }
 
         #[test]
         fn reject_unquoted_quotable() {
-            let res = parse::<TestSpec>("\"simp\0le\"");
-            assert_eq!(res, Err((5, TestError::EscapeMissing)));
+            let res = parse::<TestParsingImpl>("\"simp\\\0le\"");
+            assert_eq!(res, Err((6, CoreError::UnquoteableCharQuoted)));
         }
 
         #[test]
         fn reject_missing_closing_dquotes() {
-            let res = parse::<TestSpec>("\"simple");
-            assert_eq!(res, Err((7, TestError::QuotesMissing)));
+            let res = parse::<TestParsingImpl>("\"simple");
+            assert_eq!(res, Err((7, CoreError::DoesNotEndWithDQuotes)));
         }
 
         #[test]
         fn empty_string_does_not_panic() {
-            let res = parse::<TestSpec>("");
-            assert_eq!(res, Err((0, TestError::QuotesMissing)));
+            let res = parse::<TestParsingImpl>("");
+            assert_eq!(res, Err((0, CoreError::DoesNotEndWithDQuotes)));
         }
 
     }
@@ -176,17 +155,17 @@ mod test {
 
         #[test]
         fn accept_valid_quoted_string() {
-            assert!(validate::<TestSpec>("\"that\\\"s strange\""));
+            assert!(validate::<TestParsingImpl>("\"that\\\"s strange\""));
         }
 
         #[test]
         fn reject_invalid_quoted_string() {
-            assert!(!validate::<TestSpec>("ups"))
+            assert!(!validate::<TestParsingImpl>("ups"))
         }
 
         #[test]
         fn reject_quoted_string_shorter_than_input() {
-            assert!(!validate::<TestSpec>("\"nice!\"ups whats here?\""))
+            assert!(!validate::<TestParsingImpl>("\"nice!\"ups whats here?\""))
         }
 
     }

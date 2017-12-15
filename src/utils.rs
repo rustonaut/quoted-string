@@ -32,6 +32,7 @@ macro_rules! assert_err {
     });
 }
 
+
 /// strips quotes if they exists
 ///
 /// returns None if the input does not start with `"` and ends with `"`

@@ -1,153 +1,132 @@
-//! provides an example implementation of QuotedStringSpec
-use std::fmt::{self, Display};
-use std::error::Error;
-
+//! provides an example implementation of quoted string spec's
 use spec::{
-    QuotedStringSpec,
-    QuotedValidator, UnquotedValidator,
-    ValidationResult
+    GeneralQSSpec,
+    QuotingClassifier, QuotingClass,
+    ParsingImpl,
+    State,
+    PartialCodePoint,
+    WithoutQuotingValidator
 };
+use error::CoreError;
 
-/// Error used by TestQuotedStringSpec
-#[derive(Clone, Debug, Eq, PartialEq, Hash)]
-pub enum TestError {
-    /// character was not quotable
-    Unquoteable,
-    /// the `'"'` normally surrounding a quoted string are missing
-    QuotesMissing,
-    /// a character which needs to be escaped with a quoted-pair wasn't
-    EscapeMissing,
-    /// a quoted-string ended in a `'\\'` without a character it escapes
-    TailingEscape
-}
-
-/// a QuotedString spec example implementation
-///
-/// It's used for testing inkl. doc tests (which is mainly why it is public).
-#[derive(Copy, Clone, Debug)]
 pub struct TestSpec;
 
+impl GeneralQSSpec for TestSpec {
+    type Error = CoreError;
+    type Quoting = Self;
+    type Parsing = TestParsingImpl;
+}
 
-/// The type used by `<TestSpec as QuotedStringSpec>::QuotedValidator`
-///
-/// - it treats '\0' and '"' as non-qtext, non-ws quotable
-/// - qtext are all printable us-ascii chars ('!'...'~')
-/// - semantic ws are ' ' and '\t'
-/// - '\n' is a non-semantic ws
-#[derive(Copy, Clone, Debug)]
-pub struct TestQuotedValidator;
+impl QuotingClassifier for TestSpec {
+    type Error = CoreError;
+    fn classify_for_quoting(pcp: PartialCodePoint) -> QuotingClass {
+        if !is_valid_pcp(pcp) {
+            QuotingClass::Invalid
+        } else {
+            match pcp.as_u8() {
+                b'"' | b'\\' => QuotingClass::NeedsQuoting,
+                _ => QuotingClass::QText
+            }
+        }
+    }
+}
 
-/// The type used by `<TestSpec as QuotedStringSpec>::UnquotedValidator`
+fn is_valid_pcp(pcp: PartialCodePoint) -> bool {
+    let bch = pcp.as_u8();
+    b' ' <= bch && bch <= b'~'
+}
+
+/// a parsing implementations which allows non semantic stange thinks in it for testing purpose
 ///
-/// it exptects a 6 character sequence of upper and lower case us-ascii leters
-/// which can also contain dots but not multiple dots in a row. If it is constructed
-/// with `last_was_dot==true` then it also can not start with a dot.
-#[derive(Clone, Debug)]
+/// basically you can have a non-semantic section starting with `←` ending with `→` which has
+/// a number of `+` followed by the same number of `-`.
+///
+/// E.g. `"some think \n+++---\n"`
+///
+/// This naturally makes no sense, but is a simple way to test if the custom state is used
+/// correctly, there are some quoted string impl which need custom state as they can e.g.
+/// have non semantic soft line brakes (which are slight more complex to implement and less
+/// visible in error messages, so I used this think here)
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+pub enum TestParsingImpl {
+    StrangeInc(usize),
+    StrangeDec(usize)
+}
+
+impl ParsingImpl for TestParsingImpl {
+    type Error = CoreError;
+    fn can_be_quoted(bch: PartialCodePoint) -> bool {
+        is_valid_pcp(bch)
+    }
+    fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+        if bch.as_u8() == b'\n' {
+            Ok((State::Custom(TestParsingImpl::StrangeInc(0)), false))
+        } else if is_valid_pcp(bch) {
+            Ok((State::Normal, true))
+        } else {
+            Err(CoreError::InvalidChar)
+        }
+    }
+
+    fn advance(&self, pcp: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+        use self::TestParsingImpl::*;
+        let bch = pcp.as_u8();
+        match *self {
+            StrangeInc(v) => {
+                if bch == b'\n' {
+                    Ok((State::Normal, false))
+                } else if bch == b'+' {
+                    Ok((State::Custom(StrangeInc(v+1)), false))
+                } else if bch == b'-' && v > 0{
+                    Ok((State::Custom(StrangeDec(v-1)), false))
+                } else {
+                    Err(CoreError::InvalidChar)
+                }
+            },
+            StrangeDec(v) => {
+                if bch == b'-' && v > 0 {
+                    Ok((State::Custom(StrangeDec(v-1)), false))
+                } else if bch == b'\n' && v == 0 {
+                    Ok((State::Normal, false))
+                } else {
+                    Err(CoreError::InvalidChar)
+                }
+            }
+        }
+    }
+}
+
 pub struct TestUnquotedValidator {
-    /// len of the validated unquoted string (== count of validate_next_char calls)
-    pub len: usize,
-    /// if the last char was `'.'`
+    pub count: usize,
     pub last_was_dot: bool
 }
-
-impl Display for TestError {
-    fn fmt(&self, fter: &mut fmt::Formatter) -> fmt::Result {
-        <Self as fmt::Debug>::fmt(self, fter)
-    }
-}
-
-impl Error for TestError {
-    fn description(&self) -> &str {
-        "test error triggered"
-    }
-}
-
-
-
-impl QuotedStringSpec for TestSpec {
-    type Err = TestError;
-    type QuotedValidator = TestQuotedValidator;
-    type UnquotedValidator = TestUnquotedValidator;
-
-    #[inline]
-    fn new_unquoted_validator() -> Self::UnquotedValidator {
+impl TestUnquotedValidator {
+    pub fn new() -> Self {
         TestUnquotedValidator {
-            len: 0,
+            count: 0,
             last_was_dot: true
         }
     }
-
-    #[inline]
-    fn new_quoted_validator() -> Self::QuotedValidator {
-        TestQuotedValidator
-    }
-
-    #[inline]
-    fn unquoteable_char(_ch: char) -> Self::Err {
-        TestError::Unquoteable
-    }
-
-    #[inline]
-    fn unquoted_quotable_char(_ch: char) -> Self::Err {
-        TestError::EscapeMissing
-    }
-
-    #[inline]
-    fn error_for_tailing_escape() -> Result<(), Self::Err> {
-        Err(TestError::TailingEscape)
-    }
-
-    #[inline]
-    fn quoted_string_missing_quotes() -> Self::Err {
-        TestError::QuotesMissing
-    }
-
-
 }
 
-impl QuotedValidator for TestQuotedValidator {
-
-    type Err = TestError;
-
-    #[inline]
-    fn validate_next_char(&mut self, ch: char) -> ValidationResult<Self::Err> {
-        match ch {
-            '\\' | '"' | '\0' => ValidationResult::NeedsQuotedPair,
-            '!'...'~' => ValidationResult::QText,
-            ' ' | '\t' => ValidationResult::SemanticWs,
-            '\n' => ValidationResult::NotSemantic,
-            _ => ValidationResult::Invalid(TestError::Unquoteable)
-        }
-    }
-
-    #[inline]
-    fn end_validation(&mut self) -> Result<(), Self::Err> {
-        Ok(())
-    }
-}
-
-impl UnquotedValidator for TestUnquotedValidator {
-
-    #[inline]
-    fn validate_next_char(&mut self, ch: char) -> bool {
-        self.len += 1;
-        if self.last_was_dot {
-            if ch == '.' {
-                return false
+impl WithoutQuotingValidator for TestUnquotedValidator {
+    fn next(&mut self, pcp: PartialCodePoint) -> bool {
+        self.count += 1;
+        let bch = pcp.as_u8();
+        let lwd = self.last_was_dot;
+        match bch {
+            b'a'...b'z' => {
+                self.last_was_dot = false;
+                true
             }
-            self.last_was_dot = false;
-        }
-        match ch {
-            '.' => {self.last_was_dot = true; true},
-            'a'...'z' |
-            'A'...'Z' => true,
+            b'.' if !lwd => {
+                self.last_was_dot = true;
+                true
+            }
             _ => false
         }
     }
-
-
-    #[inline]
-    fn end_validation(&mut self) -> bool {
-        self.len == 6
+    fn end(&mut self) -> bool {
+        self.count == 6 && !self.last_was_dot
     }
 }

@@ -5,14 +5,17 @@ use std::borrow::Cow;
 #[allow(unused_imports)]
 use std::ascii::AsciiExt;
 
-use spec::{QuotedStringSpec, QuotedValidator, UnquotedValidator, ValidationResult};
+use error::CoreError;
+use spec::{
+    QuotingClassifier,
+    QuotingClass,
+    WithoutQuotingValidator,
+    PartialCodePoint
+};
 
 
 
-/// quotes the input string returning the quoted string and the used validator.
-///
-/// The validator is returned so that consumers can collect additional information if needed
-/// without iterating over the input again, e.g. if the input was pure us-ascii.
+/// quotes the input string returning the quoted string
 ///
 /// # Example
 ///
@@ -21,22 +24,20 @@ use spec::{QuotedStringSpec, QuotedValidator, UnquotedValidator, ValidationResul
 /// use quoted_string::test_utils::TestSpec;
 /// use quoted_string::quote;
 ///
-/// let (qs, _) = quote::<TestSpec>("some\"text").unwrap();
+/// let qs = quote::<TestSpec>("some\"text").unwrap();
 /// assert_eq!(qs, "\"some\\\"text\"");
 /// ```
 ///
 #[inline]
-pub fn quote<Spec: QuotedStringSpec>(
+pub fn quote<Spec: QuotingClassifier>(
     input: &str
-) -> Result<(String, Spec::QuotedValidator), Spec::Err>
+) -> Result<String, Spec::Error>
 {
     let mut out = String::with_capacity(input.len()+2);
     out.push('"');
-    let mut validator = Spec::new_quoted_validator();
-    quote_inner::<Spec>(input, &mut out, &mut validator)?;
+    quote_inner::<Spec>(input, &mut out)?;
     out.push('"');
-
-    Ok((out, validator))
+    Ok(out)
 }
 
 /// quotes a input writing it into the output buffer, does not add surrounding '"'
@@ -45,36 +46,17 @@ pub fn quote<Spec: QuotedStringSpec>(
 ///
 /// If no error is returned a boolean indecating if the whole input was ascii is
 /// returned.
-fn quote_inner<Spec: QuotedStringSpec>(
+fn quote_inner<Spec: QuotingClassifier>(
     input: &str,
     out: &mut String,
-    validator: &mut Spec::QuotedValidator
-) -> Result<(), Spec::Err>
+) -> Result<(), Spec::Error>
 {
+    use self::QuotingClass::*;
     for ch in input.chars() {
-        quote_char_into::<Spec>(ch, validator.validate_next_char(ch), out)?;
-    }
-    validator.end_validation()
-}
-
-#[inline]
-fn quote_char_into<Spec: QuotedStringSpec>(
-    ch: char,
-    validator_result: ValidationResult<Spec::Err>,
-    out: &mut String
-) -> Result<(), Spec::Err>
-{
-    use spec::ValidationResult::*;
-    match validator_result {
-        QText | SemanticWs | NotSemantic => {
-            out.push(ch)
-        }
-        NeedsQuotedPair => {
-            out.push('\\');
-            out.push(ch);
-        }
-        Invalid(err) => {
-            return Err(err);
+        match Spec::classify_for_quoting(PartialCodePoint::from_code_point(ch as u32)) {
+            QText => out.push(ch),
+            NeedsQuoting => { out.push('\\'); out.push(ch); }
+            Invalid => return Err(CoreError::InvalidChar.into())
         }
     }
     Ok(())
@@ -82,101 +64,79 @@ fn quote_char_into<Spec: QuotedStringSpec>(
 
 /// quotes the input string if needed
 ///
-/// The unquoted validator (and the quoted one if it was used) are returned
-/// to allow the collection and extraction of additional information if needed.
-/// I.e. if a string was ascii.
 ///
 /// # Example
 ///
 /// ```
 /// # use std::borrow::Cow;
 /// // use your own Spec
-/// use quoted_string::test_utils::TestSpec;
+/// use quoted_string::test_utils::{TestSpec, TestUnquotedValidator};
 /// use quoted_string::quote_if_needed;
 ///
-/// let (quoted, _meta) = quote_if_needed::<TestSpec>("simple")
+/// let mut without_quoting = TestUnquotedValidator::new();
+/// let quoted = quote_if_needed::<TestSpec, _>("simple", &mut without_quoting)
 ///     .expect("only fails if input can not be represented as quoted string with used Spec");
 ///
 /// // The used spec states a 6 character us-ascii word does not need to be represented as
 /// // quoted string
 /// assert_eq!(quoted, Cow::Borrowed("simple"));
 ///
-/// let (quoted2, _meta) = quote_if_needed::<TestSpec>("more complex").unwrap();
+/// let mut without_quoting = TestUnquotedValidator::new();
+/// let quoted2 = quote_if_needed::<TestSpec, _>("more complex", &mut without_quoting).unwrap();
 /// let expected: Cow<'static, str> = Cow::Owned("\"more complex\"".into());
 /// assert_eq!(quoted2, expected);
 /// ```
 ///
-pub fn quote_if_needed<'a, Spec: QuotedStringSpec>(
+pub fn quote_if_needed<'a, QImpl, WQImpl>(
     input: &'a str,
-) -> Result<(Cow<'a, str>, (Spec::UnquotedValidator, Spec::QuotedValidator)), Spec::Err>
+    validator: &mut WQImpl
+) -> Result<Cow<'a, str>, QImpl::Error>
+    where QImpl: QuotingClassifier,
+          WQImpl: WithoutQuotingValidator
 {
-    let (offset, mut meta) = scan_ahead::<Spec>(input)?;
-    if offset == input.len() && meta.unq_validator.end_validation() {
-        return Ok((Cow::Borrowed(input), (meta.unq_validator, meta.q_validator)))
-    }
-    let (ok, rest) = input.split_at(offset);
-    //just guess 1/8 of the remaining chars needs escaping
-    let mut out = String::with_capacity(input.len() + (rest.len() >> 3));
-    out.push('"');
-    out.push_str(ok);
-    // we have to handle one char ourself, as it was already used with q_validator
-    let one_char_offset;
-    if let Some((ch, res)) = meta.last_q_validator_res {
-        quote_char_into::<Spec>(ch, res, &mut out)?;
-        one_char_offset = ch.len_utf8();
-    } else {
-        one_char_offset = 0;
-    }
-    quote_inner::<Spec>(&rest[one_char_offset..], &mut out, &mut meta.q_validator)?;
-    out.push('"');
-    Ok((Cow::Owned(out), (meta.unq_validator, meta.q_validator)))
-}
-
-
-struct ScanMeta<Spec: QuotedStringSpec> {
-    unq_validator: Spec::UnquotedValidator,
-    q_validator: Spec::QuotedValidator,
-    last_q_validator_res: Option<(char, ValidationResult<Spec::Err>)>
-}
-
-fn scan_ahead<Spec: QuotedStringSpec>(
-    inp: &str
-) -> Result<(usize, ScanMeta<Spec>), Spec::Err>
-{
-    use spec::ValidationResult::*;
-    let mut unq_validator = Spec::new_unquoted_validator();
-    let mut q_validator = Spec::new_quoted_validator();
-
-
-    for (offset, ch) in inp.char_indices() {
-        //I have to drive the state of both validators:
-        // though the overhead should be compiled out by the optimizer
-        // except in cases where it is needed
-        let q_valid = q_validator.validate_next_char(ch);
-        if unq_validator.validate_next_char(ch) {
+    use self::QuotingClass::*;
+    let mut needs_quoting_from = None;
+    for (idx, ch) in input.char_indices() {
+        let pcp = PartialCodePoint::from_code_point(ch as u32);
+        if !validator.next(pcp) {
+            needs_quoting_from = Some(idx);
+            break;
+        } else {
             #[cfg(debug_assertions)]
             {
-                //QuotedStringSpec is expected to be implemented so that anything valid without quotations
-                //is also a valid quoted string if dquotes are added, validate this with debug assertions
-                match q_validator.validate_next_char(ch) {
-                    QText | SemanticWs | NotSemantic |
-                    NeedsQuotedPair => {},
-                    Invalid(_err) => {
-                        panic!(concat!("[BUG/QuotedStringSpec/custom_impl]",
-                            " valid outside of quoting but not inside of quoting)"));
-                    }
-                };
+                match QImpl::classify_for_quoting(pcp) {
+                    QText => {},
+                    Invalid => panic!(concat!("[BUG] representable without quoted string,",
+                                            "but invalid in quoted string: {}"), ch),
+                    NeedsQuoting => panic!(concat!("[BUG] representable without quoted string,",
+                                            "but not without escape in quoted string: {}"), ch)
+                }
             }
-        } else {
-            let meta = ScanMeta {
-                unq_validator, q_validator,
-                last_q_validator_res: Some((ch, q_valid))
-            };
-            return Ok((offset, meta));
         }
     }
-    let meta = ScanMeta { unq_validator, q_validator, last_q_validator_res: None };
-    Ok((inp.len(), meta))
+
+    let start_quoting_from =
+        if let Some(offset) = needs_quoting_from {
+            offset
+        } else {
+            return if validator.end() {
+                Ok(Cow::Borrowed(input))
+            } else {
+                let mut out = String::with_capacity(input.len() + 2);
+                out.push('"');
+                out.push_str(input);
+                out.push('"');
+                Ok(Cow::Owned(out))
+            };
+        };
+
+
+    let mut out = String::with_capacity(input.len() + 3);
+    out.push('"');
+    out.push_str(&input[0..start_quoting_from]);
+    quote_inner::<QImpl>(&input[start_quoting_from..], &mut out)?;
+    out.push('"');
+    Ok(Cow::Owned(out))
 }
 
 
@@ -188,18 +148,18 @@ mod test {
     #[allow(warnings)]
     use std::ascii::AsciiExt;
     use test_utils::*;
+    use error::CoreError;
     use super::*;
 
     #[test]
     fn quote_simple() {
         let data = &[
             ("this is simple", "\"this is simple\""),
-            ("also\tsimple", "\"also\tsimple\""),
-            ("with quotes\"<-", "\"with quotes\\\"<-\""),
-            ("with slash\\<-", "\"with slash\\\\<-\"")
+            ("with quotes\"  ", "\"with quotes\\\"  \""),
+            ("with slash\\  ", "\"with slash\\\\  \"")
         ];
         for &(unquoted, quoted) in data.iter() {
-            let (got_quoted, _qvalidator) = quote::<TestSpec>(unquoted).unwrap();
+            let got_quoted = quote::<TestSpec>(unquoted).unwrap();
             assert_eq!(got_quoted, quoted);
         }
     }
@@ -207,45 +167,50 @@ mod test {
     #[test]
     fn quote_unquotable() {
         let res = quote::<TestSpec>("→");
-        assert_eq!(res.unwrap_err(), TestError::Unquoteable);
+        assert_eq!(res.unwrap_err(), CoreError::InvalidChar);
     }
 
     #[test]
     fn quote_if_needed_unneded() {
-        let (out, _) = quote_if_needed::<TestSpec>("abcdef").unwrap();
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out= quote_if_needed::<TestSpec, _>("abcdef", &mut without_quoting).unwrap();
         assert_eq!(out, Cow::Borrowed("abcdef"));
     }
 
     #[test]
     fn quote_if_needed_state() {
-        let (out, (uqv,_qv)) = quote_if_needed::<TestSpec>("abcde.").unwrap();
-        assert_eq!(out, Cow::Borrowed("abcde."));
-        assert_eq!(uqv.len, 6);
-        assert_eq!(uqv.last_was_dot, true)
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out = quote_if_needed::<TestSpec, _>("abcd.e", &mut without_quoting).unwrap();
+        assert_eq!(out, Cow::Borrowed("abcd.e"));
+        assert_eq!(without_quoting.count, 6);
+        assert_eq!(without_quoting.last_was_dot, false)
     }
 
     #[test]
     fn quote_if_needed_needed_because_char() {
-        let (out, (uqv, _qv)) = quote_if_needed::<TestSpec>("ab def").unwrap();
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out = quote_if_needed::<TestSpec, _>("ab def", &mut without_quoting).unwrap();
         let expected: Cow<'static, str> = Cow::Owned("\"ab def\"".into());
         assert_eq!(out, expected);
-        assert!(uqv.len >= 3);
+        assert!(without_quoting.count >= 3);
     }
 
     #[test]
     fn quote_if_needed_needed_because_state() {
-        let (out, (uqv, _qv)) = quote_if_needed::<TestSpec>("abc..f").unwrap();
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out = quote_if_needed::<TestSpec, _>("abc..f", &mut without_quoting).unwrap();
         let expected: Cow<'static, str> = Cow::Owned("\"abc..f\"".into());
         assert_eq!(out, expected);
-        assert!(uqv.len >= 5);
+        assert!(without_quoting.count >= 5);
     }
 
     #[test]
     fn quote_if_needed_needed_because_end() {
-        let (out, (uqv, _qv)) = quote_if_needed::<TestSpec>("a").unwrap();
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out = quote_if_needed::<TestSpec, _>("a", &mut without_quoting).unwrap();
         let expected: Cow<'static, str> = Cow::Owned("\"a\"".into());
         assert_eq!(out, expected);
-        assert!(uqv.len >= 1);
+        assert!(without_quoting.count >= 1);
     }
 
 }
