@@ -98,3 +98,5 @@ Change Log
     - Renamed `Quotable` to `NeedsQuotedPair`
     - Removed unnecessary `Err` Associated Type from `UnquotedValidator`
     - added default impl for `end_validation` of `UnquotedValidator` and `QuotedValidator`
+    
+- **0.5.0**: Changed Spec to use a automaton internally
