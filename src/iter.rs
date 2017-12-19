@@ -2,7 +2,7 @@ use std::str::Chars;
 use std::iter::Iterator;
 use std::cmp::{ PartialEq, Eq };
 
-use spec::{ParsingImpl, GeneralQSSpec, ScanAutomaton, PartialCodePoint};
+use spec::{GeneralQSSpec, ScanAutomaton, PartialCodePoint};
 // this import will become unused in future rust versions
 // but won't be removed for now for supporting current
 // rust versions
