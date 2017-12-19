@@ -1,5 +1,5 @@
 #[doc(hidden)]
-#[macro_export]
+#[cfg(test)]
 macro_rules! assert_ok {
     ($val:expr) => ({
         match $val {
@@ -16,7 +16,7 @@ macro_rules! assert_ok {
 }
 
 #[doc(hidden)]
-#[macro_export]
+#[cfg(test)]
 macro_rules! assert_err {
     ($val:expr) => ({
         match $val {
