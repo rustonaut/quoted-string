@@ -41,7 +41,9 @@ pub trait ParsingImpl: Copy+Eq+Debug {
     type Error: From<CoreError>;
     fn can_be_quoted(bch: PartialCodePoint) -> bool;
     fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error>;
-    fn advance(&self, bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error>;
+    fn advance(&self, bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+        unreachable!("[BUG] custom state is not used, so advance is unreachable")
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
