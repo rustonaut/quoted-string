@@ -1,4 +1,4 @@
-use spec::{ScanAutomaton, ParsingImpl, PartialCodePoint};
+use spec::{ScanAutomaton, GeneralQSSpec,  PartialCodePoint};
 
 /// validates if input is a valid quoted-string
 ///
@@ -8,14 +8,14 @@ use spec::{ScanAutomaton, ParsingImpl, PartialCodePoint};
 ///
 /// ```
 /// // use your own spec
-/// use quoted_string::test_utils::TestParsingImpl;
+/// use quoted_string::test_utils::TestSpec;
 /// use quoted_string::validate;
 ///
-/// assert!(validate::<TestParsingImpl>("\"quoted string\""));
-/// assert!(!validate::<TestParsingImpl>("\"not right\"really not"));
+/// assert!(validate::<TestSpec>("\"quoted string\""));
+/// assert!(!validate::<TestSpec>("\"not right\"really not"));
 /// ```
 ///
-pub fn validate<Spec: ParsingImpl>(input: &str) -> bool {
+pub fn validate<Spec: GeneralQSSpec>(input: &str) -> bool {
     parse::<Spec>(input)
         .map(|res|res.tail.is_empty())
         .unwrap_or(false)
@@ -44,22 +44,22 @@ pub struct Parsed<'a> {
 ///
 /// ```
 /// // use your own Spec
-/// use quoted_string::test_utils::TestParsingImpl;
+/// use quoted_string::test_utils::TestSpec;
 /// use quoted_string::{parse, Parsed};
 ///
-/// let parsed = parse::<TestParsingImpl>("\"list of\"; \"quoted strings\"").unwrap();
+/// let parsed = parse::<TestSpec>("\"list of\"; \"quoted strings\"").unwrap();
 /// assert_eq!(parsed, Parsed {
 ///     quoted_string: "\"list of\"",
 ///     tail:  "; \"quoted strings\""
 /// });
 /// ```
 ///
-pub fn parse<Impl: ParsingImpl>(input: &str) -> Result<Parsed, (usize, Impl::Error)> {
-    let mut automaton = ScanAutomaton::<Impl>::new();
+pub fn parse<Impl: GeneralQSSpec>(input: &str) -> Result<Parsed, (usize, Impl::Error)> {
+    let mut automaton = ScanAutomaton::<Impl::Parsing>::new();
 
     for (idx, bch) in input.bytes().enumerate() {
         automaton.advance(PartialCodePoint::from_utf8_byte(bch))
-            .map_err(|err| (idx, err))?;
+            .map_err(|err| (idx, err.into()))?;
 
         if automaton.did_end() {
             return Ok(Parsed {
@@ -75,7 +75,7 @@ pub fn parse<Impl: ParsingImpl>(input: &str) -> Result<Parsed, (usize, Impl::Err
         Ok(_) =>
             panic!("[BUG] automaton.did_end() == false but automaton.end() does not trigger error"),
         Err(err) => {
-            Err((input.len(), err))
+            Err((input.len(), err.into()))
         }
     }
 }
@@ -91,59 +91,59 @@ mod test {
 
         #[test]
         fn parse_simple() {
-            let parsed = parse::<TestParsingImpl>("\"simple\"").unwrap();
+            let parsed = parse::<TestSpec>("\"simple\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"simple\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn parse_with_tail() {
-            let parsed = parse::<TestParsingImpl>("\"simple\"; abc").unwrap();
+            let parsed = parse::<TestSpec>("\"simple\"; abc").unwrap();
             assert_eq!(parsed.quoted_string, "\"simple\"");
             assert_eq!(parsed.tail, "; abc");
         }
 
         #[test]
         fn parse_with_quoted_pairs() {
-            let parsed = parse::<TestParsingImpl>("\"si\\\"m\\\\ple\"").unwrap();
+            let parsed = parse::<TestSpec>("\"si\\\"m\\\\ple\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"si\\\"m\\\\ple\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn parse_with_unnecessary_quoted_pairs() {
-            let parsed = parse::<TestParsingImpl>("\"sim\\p\\le\"").unwrap();
+            let parsed = parse::<TestSpec>("\"sim\\p\\le\"").unwrap();
             assert_eq!(parsed.quoted_string, "\"sim\\p\\le\"");
             assert_eq!(parsed.tail, "");
         }
 
         #[test]
         fn reject_missing_quoted() {
-            let res = parse::<TestParsingImpl>("simple");
+            let res = parse::<TestSpec>("simple");
             assert_eq!(res, Err((0, CoreError::DoesNotStartWithDQuotes)));
         }
 
         #[test]
         fn reject_tailing_escape() {
-            let res = parse::<TestParsingImpl>("\"simple\\\"");
+            let res = parse::<TestSpec>("\"simple\\\"");
             assert_eq!(res, Err((9, CoreError::DoesNotEndWithDQuotes)));
         }
 
         #[test]
         fn reject_unquoted_quotable() {
-            let res = parse::<TestParsingImpl>("\"simp\\\0le\"");
+            let res = parse::<TestSpec>("\"simp\\\0le\"");
             assert_eq!(res, Err((6, CoreError::UnquoteableCharQuoted)));
         }
 
         #[test]
         fn reject_missing_closing_dquotes() {
-            let res = parse::<TestParsingImpl>("\"simple");
+            let res = parse::<TestSpec>("\"simple");
             assert_eq!(res, Err((7, CoreError::DoesNotEndWithDQuotes)));
         }
 
         #[test]
         fn empty_string_does_not_panic() {
-            let res = parse::<TestParsingImpl>("");
+            let res = parse::<TestSpec>("");
             assert_eq!(res, Err((0, CoreError::DoesNotEndWithDQuotes)));
         }
 
@@ -155,17 +155,17 @@ mod test {
 
         #[test]
         fn accept_valid_quoted_string() {
-            assert!(validate::<TestParsingImpl>("\"that\\\"s strange\""));
+            assert!(validate::<TestSpec>("\"that\\\"s strange\""));
         }
 
         #[test]
         fn reject_invalid_quoted_string() {
-            assert!(!validate::<TestParsingImpl>("ups"))
+            assert!(!validate::<TestSpec>("ups"))
         }
 
         #[test]
         fn reject_quoted_string_shorter_than_input() {
-            assert!(!validate::<TestParsingImpl>("\"nice!\"ups whats here?\""))
+            assert!(!validate::<TestSpec>("\"nice!\"ups whats here?\""))
         }
 
     }
