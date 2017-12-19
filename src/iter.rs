@@ -1,6 +1,6 @@
 use std::str::Chars;
 use std::iter::Iterator;
-use std::cmp::{ PartialEq, Eq };
+use std::cmp::{ PartialEq };
 
 use spec::{GeneralQSSpec, ScanAutomaton, PartialCodePoint};
 // this import will become unused in future rust versions
@@ -161,10 +161,6 @@ impl<'a, 'b, Spec> PartialEq<ContentChars<'b, Spec>> for ContentChars<'a, Spec>
         iter_eq(self.clone(), other.clone(), |l,r|l==r)
     }
 }
-
-impl<'a, Spec> Eq for ContentChars<'a, Spec>
-    where Spec: GeneralQSSpec
-{}
 
 
 
