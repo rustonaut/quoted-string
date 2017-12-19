@@ -10,7 +10,8 @@ use spec::{
     QuotingClassifier,
     QuotingClass,
     WithoutQuotingValidator,
-    PartialCodePoint
+    PartialCodePoint,
+    GeneralQSSpec
 };
 
 
@@ -29,7 +30,7 @@ use spec::{
 /// ```
 ///
 #[inline]
-pub fn quote<Spec: QuotingClassifier>(
+pub fn quote<Spec: GeneralQSSpec>(
     input: &str
 ) -> Result<String, Spec::Error>
 {
@@ -46,17 +47,23 @@ pub fn quote<Spec: QuotingClassifier>(
 ///
 /// If no error is returned a boolean indecating if the whole input was ascii is
 /// returned.
-fn quote_inner<Spec: QuotingClassifier>(
+fn quote_inner<Spec: GeneralQSSpec>(
     input: &str,
     out: &mut String,
 ) -> Result<(), Spec::Error>
 {
     use self::QuotingClass::*;
     for ch in input.chars() {
-        match Spec::classify_for_quoting(PartialCodePoint::from_code_point(ch as u32)) {
+        match Spec::Quoting::classify_for_quoting(PartialCodePoint::from_code_point(ch as u32)) {
             QText => out.push(ch),
             NeedsQuoting => { out.push('\\'); out.push(ch); }
-            Invalid => return Err(CoreError::InvalidChar.into())
+            Invalid => {
+                let err: <Spec::Quoting as QuotingClassifier>::Error
+                    = CoreError::InvalidChar.into();
+                let err: Spec::Error
+                    = err.into();
+                return Err(err)
+            }
         }
     }
     Ok(())
@@ -87,11 +94,11 @@ fn quote_inner<Spec: QuotingClassifier>(
 /// assert_eq!(quoted2, expected);
 /// ```
 ///
-pub fn quote_if_needed<'a, QImpl, WQImpl>(
+pub fn quote_if_needed<'a, Spec, WQImpl>(
     input: &'a str,
     validator: &mut WQImpl
-) -> Result<Cow<'a, str>, QImpl::Error>
-    where QImpl: QuotingClassifier,
+) -> Result<Cow<'a, str>, Spec::Error>
+    where Spec: GeneralQSSpec,
           WQImpl: WithoutQuotingValidator
 {
     use self::QuotingClass::*;
@@ -104,7 +111,7 @@ pub fn quote_if_needed<'a, QImpl, WQImpl>(
         } else {
             #[cfg(debug_assertions)]
             {
-                match QImpl::classify_for_quoting(pcp) {
+                match Spec::Quoting::classify_for_quoting(pcp) {
                     QText => {},
                     Invalid => panic!(concat!("[BUG] representable without quoted string,",
                                             "but invalid in quoted string: {}"), ch),
@@ -134,7 +141,7 @@ pub fn quote_if_needed<'a, QImpl, WQImpl>(
     let mut out = String::with_capacity(input.len() + 3);
     out.push('"');
     out.push_str(&input[0..start_quoting_from]);
-    quote_inner::<QImpl>(&input[start_quoting_from..], &mut out)?;
+    quote_inner::<Spec>(&input[start_quoting_from..], &mut out)?;
     out.push('"');
     Ok(Cow::Owned(out))
 }
