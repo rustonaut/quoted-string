@@ -1,4 +1,4 @@
-use spec::{ScanAutomaton, ParsingImpl, PartialCodePoint};
+use spec::{GeneralQSSpec, ScanAutomaton, PartialCodePoint};
 use std::borrow::Cow;
 
 /// converts a quoted string into it's content
@@ -11,23 +11,23 @@ use std::borrow::Cow;
 /// ```
 /// # use std::borrow::Cow;
 /// //use your own Spec in practise
-/// use quoted_string::test_utils::TestParsingImpl;
+/// use quoted_string::test_utils::TestSpec;
 /// use quoted_string::to_content;
 ///
-/// let content = to_content::<TestParsingImpl>("\"ab\\\"c\n\nde\"")
+/// let content = to_content::<TestSpec>("\"ab\\\"c\n\nde\"")
 ///     .expect("only fails if the input is not a quoted string");
 /// assert_eq!(&*content, "ab\"cde");
 ///
-/// let content = to_content::<TestParsingImpl>("\"simple\"").unwrap();
+/// let content = to_content::<TestSpec>("\"simple\"").unwrap();
 /// // to content will just use slicing to strip `'"'`-quotes if possible
 /// assert_eq!(content, Cow::Borrowed("simple"));
 /// ```
 ///
-pub fn to_content<'a, Impl: ParsingImpl>(
+pub fn to_content<'a, Spec: GeneralQSSpec>(
     quoted_string: &'a str
-) -> Result<Cow<'a, str>, Impl::Error>
+) -> Result<Cow<'a, str>, Spec::Error>
 {
-    let mut automaton = ScanAutomaton::<Impl>::new();
+    let mut automaton = ScanAutomaton::<Spec::Parsing>::new();
     let mut continue_copy_from = None;
     for (idx, bch) in quoted_string.bytes().enumerate() {
         let emit = automaton.advance(PartialCodePoint::from_utf8_byte(bch))?;
@@ -81,68 +81,68 @@ mod test {
 
     #[test]
     fn no_quotes() {
-        let res = to_content::<TestParsingImpl>("noquotes");
+        let res = to_content::<TestSpec>("noquotes");
         assert_eq!(res, Err(CoreError::DoesNotStartWithDQuotes));
     }
 
     #[test]
     fn unnecessary_quoted() {
-        let res = to_content::<TestParsingImpl>(r#""simple""#).unwrap();
+        let res = to_content::<TestSpec>(r#""simple""#).unwrap();
         assert_eq!(res, Cow::Borrowed("simple"))
     }
 
     #[test]
     fn quoted_but_no_quoted_pair() {
-        let res = to_content::<TestParsingImpl>(r#""abc def""#).unwrap();
+        let res = to_content::<TestSpec>(r#""abc def""#).unwrap();
         assert_eq!(res, Cow::Borrowed("abc def"))
     }
 
     #[test]
     fn with_quoted_pair() {
-        let res = to_content::<TestParsingImpl>(r#""a\"b""#).unwrap();
+        let res = to_content::<TestSpec>(r#""a\"b""#).unwrap();
         let expected: Cow<'static, str> = Cow::Owned(r#"a"b"#.into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn with_multiple_quoted_pairs() {
-        let res = to_content::<TestParsingImpl>(r#""a\"\bc\ d""#).unwrap();
+        let res = to_content::<TestSpec>(r#""a\"\bc\ d""#).unwrap();
         let expected: Cow<'static, str> = Cow::Owned(r#"a"bc d"#.into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn empty() {
-        let res = to_content::<TestParsingImpl>(r#""""#).unwrap();
+        let res = to_content::<TestSpec>(r#""""#).unwrap();
         assert_eq!(res, Cow::Borrowed(""))
     }
 
     #[test]
     fn strip_non_semantic_ws() {
-        let res = to_content::<TestParsingImpl>("\"hy \n\nthere\"").unwrap();
+        let res = to_content::<TestSpec>("\"hy \n\nthere\"").unwrap();
         let expected: Cow<'static, str> = Cow::Owned("hy there".into());
         assert_eq!(res, expected);
     }
 
     #[test]
     fn tailing_escape() {
-        let res = to_content::<TestParsingImpl>(r#""ab\""#);
+        let res = to_content::<TestSpec>(r#""ab\""#);
         assert_eq!(res, Err(CoreError::DoesNotEndWithDQuotes));
     }
 
     #[test]
     fn missing_escape() {
-        let res = to_content::<TestParsingImpl>("\"a\"\"");
+        let res = to_content::<TestSpec>("\"a\"\"");
         assert_eq!(res, Err(CoreError::QuotedStringAlreadyEnded));
     }
 
     #[test]
     fn custom_state_in_parsing_impl_is_used() {
-        let res = to_content::<TestParsingImpl>("\"hy \n+++---\nthere\"").unwrap();
+        let res = to_content::<TestSpec>("\"hy \n+++---\nthere\"").unwrap();
         let expected: Cow<'static, str> = Cow::Owned("hy there".into());
         assert_eq!(res, expected);
 
-        let res = to_content::<TestParsingImpl>("\"hy \n+--\nthere\"");
+        let res = to_content::<TestSpec>("\"hy \n+--\nthere\"");
         assert_eq!(res, Err(CoreError::InvalidChar));
     }
 
