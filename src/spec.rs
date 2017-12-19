@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use error::CoreError;
 
-pub trait GeneralQSSpec {
+pub trait GeneralQSSpec: Clone+Debug {
     type Error:
         From<<Self::Quoting as QuotingClassifier>::Error>
         + From<<Self::Parsing as ParsingImpl>::Error>;
@@ -64,7 +64,7 @@ impl<Impl> ScanAutomaton<Impl>
         self.state == State::End
     }
 
-    pub fn end(self) -> Result<(), Impl::Error> {
+    pub fn end(&mut self) -> Result<(), Impl::Error> {
         if self.did_end() {
             Ok(())
         } else {

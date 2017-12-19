@@ -1,4 +1,6 @@
 //! provides an example implementation of quoted string spec's
+use std::default::Default;
+
 use spec::{
     GeneralQSSpec,
     QuotingClassifier, QuotingClass,
@@ -9,6 +11,7 @@ use spec::{
 };
 use error::CoreError;
 
+#[derive(Copy, Clone, Debug)]
 pub struct TestSpec;
 
 impl GeneralQSSpec for TestSpec {
@@ -96,16 +99,22 @@ impl ParsingImpl for TestParsingImpl {
     }
 }
 
+
 pub struct TestUnquotedValidator {
     pub count: usize,
     pub last_was_dot: bool
 }
-impl TestUnquotedValidator {
-    pub fn new() -> Self {
+impl Default for TestUnquotedValidator {
+    fn default() -> Self {
         TestUnquotedValidator {
             count: 0,
             last_was_dot: true
         }
+    }
+}
+impl TestUnquotedValidator {
+    pub fn new() -> Self {
+        Default::default()
     }
 }
 
