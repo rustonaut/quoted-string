@@ -32,7 +32,7 @@ use spec::{
 #[inline]
 pub fn quote<Spec: GeneralQSSpec>(
     input: &str
-) -> Result<String, Spec::Error>
+) -> Result<String, CoreError>
 {
     let mut out = String::with_capacity(input.len()+2);
     out.push('"');
@@ -50,20 +50,14 @@ pub fn quote<Spec: GeneralQSSpec>(
 fn quote_inner<Spec: GeneralQSSpec>(
     input: &str,
     out: &mut String,
-) -> Result<(), Spec::Error>
+) -> Result<(), CoreError>
 {
     use self::QuotingClass::*;
     for ch in input.chars() {
         match Spec::Quoting::classify_for_quoting(PartialCodePoint::from_code_point(ch as u32)) {
             QText => out.push(ch),
             NeedsQuoting => { out.push('\\'); out.push(ch); }
-            Invalid => {
-                let err: <Spec::Quoting as QuotingClassifier>::Error
-                    = CoreError::InvalidChar.into();
-                let err: Spec::Error
-                    = err.into();
-                return Err(err)
-            }
+            Invalid => return Err(CoreError::InvalidChar)
         }
     }
     Ok(())
@@ -97,7 +91,7 @@ fn quote_inner<Spec: GeneralQSSpec>(
 pub fn quote_if_needed<'a, Spec, WQImpl>(
     input: &'a str,
     validator: &mut WQImpl
-) -> Result<Cow<'a, str>, Spec::Error>
+) -> Result<Cow<'a, str>, CoreError>
     where Spec: GeneralQSSpec,
           WQImpl: WithoutQuotingValidator
 {
@@ -109,6 +103,7 @@ pub fn quote_if_needed<'a, Spec, WQImpl>(
             needs_quoting_from = Some(idx);
             break;
         } else {
+            //FIXME check if is this even enabled in the right context
             #[cfg(debug_assertions)]
             {
                 match Spec::Quoting::classify_for_quoting(pcp) {
@@ -123,7 +118,9 @@ pub fn quote_if_needed<'a, Spec, WQImpl>(
     }
 
     let start_quoting_from =
-        if let Some(offset) = needs_quoting_from {
+        if input.len() == 0 {
+            0
+        } else if let Some(offset) = needs_quoting_from {
             offset
         } else {
             return if validator.end() {
@@ -199,7 +196,7 @@ mod test {
         let out = quote_if_needed::<TestSpec, _>("ab def", &mut without_quoting).unwrap();
         let expected: Cow<'static, str> = Cow::Owned("\"ab def\"".into());
         assert_eq!(out, expected);
-        assert!(without_quoting.count >= 3);
+        assert!(without_quoting.count >= 2);
     }
 
     #[test]
@@ -208,7 +205,7 @@ mod test {
         let out = quote_if_needed::<TestSpec, _>("abc..f", &mut without_quoting).unwrap();
         let expected: Cow<'static, str> = Cow::Owned("\"abc..f\"".into());
         assert_eq!(out, expected);
-        assert!(without_quoting.count >= 5);
+        assert!(without_quoting.count >= 4);
     }
 
     #[test]
@@ -220,4 +217,12 @@ mod test {
         assert!(without_quoting.count >= 1);
     }
 
+    #[test]
+    fn quote_if_needed_empty_value() {
+        let mut without_quoting = TestUnquotedValidator::new();
+        let out = quote_if_needed::<TestSpec, _>("", &mut without_quoting).unwrap();
+        let expected: Cow<'static, str> = Cow::Owned("\"\"".into());
+        assert_eq!(out, expected);
+        assert_eq!(without_quoting.count, 0);
+    }
 }

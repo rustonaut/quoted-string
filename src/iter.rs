@@ -2,6 +2,7 @@ use std::str::Chars;
 use std::iter::Iterator;
 use std::cmp::{ PartialEq };
 
+use error::CoreError;
 use spec::{GeneralQSSpec, ScanAutomaton, PartialCodePoint};
 // this import will become unused in future rust versions
 // but won't be removed for now for supporting current
@@ -98,7 +99,7 @@ impl<'s, Impl> ContentChars<'s, Impl>
 impl<'a, Impl> Iterator for ContentChars<'a, Impl>
     where Impl: GeneralQSSpec
 {
-    type Item = Result<char, Impl::Error>;
+    type Item = Result<char, CoreError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

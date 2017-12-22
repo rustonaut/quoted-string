@@ -2,15 +2,11 @@ use std::fmt::Debug;
 use error::CoreError;
 
 pub trait GeneralQSSpec: Clone+Debug {
-    type Error:
-        From<<Self::Quoting as QuotingClassifier>::Error>
-        + From<<Self::Parsing as ParsingImpl>::Error>;
     type Quoting: QuotingClassifier;
     type Parsing: ParsingImpl;
 }
 
 pub trait QuotingClassifier {
-    type Error: From<CoreError>;
     fn classify_for_quoting(pcp: PartialCodePoint) -> QuotingClass;
 }
 
@@ -21,8 +17,10 @@ pub enum QuotingClass {
 }
 
 pub trait WithoutQuotingValidator {
+    /// if next returns false, it's state should NOT be modified i.e. calling
+    /// .end() after next(..) returned false corresponds to the input sequence _until_ next(..) was false
     fn next(&mut self, pcp: PartialCodePoint) -> bool;
-    fn end(&mut self) -> bool;
+    fn end(&self) -> bool;
 }
 
 
@@ -38,10 +36,9 @@ pub enum State<T: Copy+Eq+Debug> {
 
 
 pub trait ParsingImpl: Copy+Eq+Debug {
-    type Error: From<CoreError>;
     fn can_be_quoted(bch: PartialCodePoint) -> bool;
-    fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error>;
-    fn advance(&self, _pcp: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+    fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), CoreError>;
+    fn advance(&self, _pcp: PartialCodePoint) -> Result<(State<Self>, bool), CoreError> {
         unreachable!("[BUG] custom state is not used, so advance is unreachable")
     }
 }
@@ -64,7 +61,7 @@ impl<Impl> ScanAutomaton<Impl>
         self.state == State::End
     }
 
-    pub fn end(&mut self) -> Result<(), Impl::Error> {
+    pub fn end(&mut self) -> Result<(), CoreError> {
         if self.did_end() {
             Ok(())
         } else {
@@ -72,7 +69,7 @@ impl<Impl> ScanAutomaton<Impl>
         }
     }
 
-    pub fn advance(&mut self, pcp: PartialCodePoint) -> Result<bool, Impl::Error> {
+    pub fn advance(&mut self, pcp: PartialCodePoint) -> Result<bool, CoreError> {
         match _advance_scan_automaton(self.state, pcp) {
             Ok((state, emit)) => {
                 self.state = state;
@@ -88,7 +85,7 @@ impl<Impl> ScanAutomaton<Impl>
 }
 
 fn _advance_scan_automaton<Impl: ParsingImpl>(state: State<Impl>, pcp: PartialCodePoint)
-    -> Result<(State<Impl>, bool), Impl::Error>
+    -> Result<(State<Impl>, bool), CoreError>
 {
     use self::State::*;
     let pcp_val = pcp.as_u8();
@@ -97,7 +94,7 @@ fn _advance_scan_automaton<Impl: ParsingImpl>(state: State<Impl>, pcp: PartialCo
             if pcp_val == b'"' {
                 Ok((Normal, false))
             } else {
-                Err(CoreError::DoesNotStartWithDQuotes.into())
+                Err(CoreError::DoesNotStartWithDQuotes)
             }
         }
         Normal => {

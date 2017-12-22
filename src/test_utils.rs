@@ -15,13 +15,11 @@ use error::CoreError;
 pub struct TestSpec;
 
 impl GeneralQSSpec for TestSpec {
-    type Error = CoreError;
     type Quoting = Self;
     type Parsing = TestParsingImpl;
 }
 
 impl QuotingClassifier for TestSpec {
-    type Error = CoreError;
     fn classify_for_quoting(pcp: PartialCodePoint) -> QuotingClass {
         if !is_valid_pcp(pcp) {
             QuotingClass::Invalid
@@ -57,11 +55,10 @@ pub enum TestParsingImpl {
 }
 
 impl ParsingImpl for TestParsingImpl {
-    type Error = CoreError;
     fn can_be_quoted(bch: PartialCodePoint) -> bool {
         is_valid_pcp(bch)
     }
-    fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+    fn handle_normal_state(bch: PartialCodePoint) -> Result<(State<Self>, bool), CoreError> {
         if bch.as_u8() == b'\n' {
             Ok((State::Custom(TestParsingImpl::StrangeInc(0)), false))
         } else if is_valid_pcp(bch) {
@@ -71,7 +68,7 @@ impl ParsingImpl for TestParsingImpl {
         }
     }
 
-    fn advance(&self, pcp: PartialCodePoint) -> Result<(State<Self>, bool), Self::Error> {
+    fn advance(&self, pcp: PartialCodePoint) -> Result<(State<Self>, bool), CoreError> {
         use self::TestParsingImpl::*;
         let bch = pcp.as_u8();
         match *self {
@@ -120,10 +117,9 @@ impl TestUnquotedValidator {
 
 impl WithoutQuotingValidator for TestUnquotedValidator {
     fn next(&mut self, pcp: PartialCodePoint) -> bool {
-        self.count += 1;
         let bch = pcp.as_u8();
         let lwd = self.last_was_dot;
-        match bch {
+        let res = match bch {
             b'a'...b'z' => {
                 self.last_was_dot = false;
                 true
@@ -133,9 +129,13 @@ impl WithoutQuotingValidator for TestUnquotedValidator {
                 true
             }
             _ => false
+        };
+        if res {
+            self.count += 1;
         }
+        res
     }
-    fn end(&mut self) -> bool {
+    fn end(&self) -> bool {
         self.count == 6 && !self.last_was_dot
     }
 }

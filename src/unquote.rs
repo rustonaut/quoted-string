@@ -1,4 +1,5 @@
 use spec::{GeneralQSSpec, ScanAutomaton, PartialCodePoint};
+use error::CoreError;
 use std::borrow::Cow;
 
 /// converts a quoted string into it's content
@@ -25,7 +26,7 @@ use std::borrow::Cow;
 ///
 pub fn to_content<'a, Spec: GeneralQSSpec>(
     quoted_string: &'a str
-) -> Result<Cow<'a, str>, Spec::Error>
+) -> Result<Cow<'a, str>, CoreError>
 {
     let mut automaton = ScanAutomaton::<Spec::Parsing>::new();
     let mut continue_copy_from = None;

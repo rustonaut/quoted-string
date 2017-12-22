@@ -1,4 +1,5 @@
 use spec::{ScanAutomaton, GeneralQSSpec,  PartialCodePoint};
+use error::CoreError;
 
 /// validates if input is a valid quoted-string
 ///
@@ -54,7 +55,7 @@ pub struct Parsed<'a> {
 /// });
 /// ```
 ///
-pub fn parse<Impl: GeneralQSSpec>(input: &str) -> Result<Parsed, (usize, Impl::Error)> {
+pub fn parse<Impl: GeneralQSSpec>(input: &str) -> Result<Parsed, (usize, CoreError)> {
     let mut automaton = ScanAutomaton::<Impl::Parsing>::new();
 
     for (idx, bch) in input.bytes().enumerate() {
