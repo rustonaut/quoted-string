@@ -13,7 +13,7 @@ keywords      = ["mail", "quoted", "mime", "string" ]
 categories    = ["encoding"]
 
 [badges]
-travis-ci = { repository = "1aim/quoted-string", branch = "master" }
+#travis-ci = { repository = "1aim/quoted-string", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 
