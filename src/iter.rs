@@ -227,7 +227,7 @@ mod test {
     #[test]
     fn missing_double_quoted() {
         let mut chars = ContentChars::<TestSpec>::from_str("abcdef");
-        assert_eq!(assert_err!(chars.next().unwrap()), CoreError::DoesNotStartWithDQuotes);
+        assert_eq!(chars.next().expect("is some").unwrap_err(), CoreError::DoesNotStartWithDQuotes);
     }
 
     #[test]

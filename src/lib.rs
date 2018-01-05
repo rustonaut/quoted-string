@@ -7,23 +7,20 @@
 //!
 //!
 //!
-//TODO
-//#![warn(missing_docs)]
+#![warn(missing_docs)]
 
 
-pub use utils::{
-    strip_quotes,
-};
+
 pub use iter::{ContentChars, AsciiCaseInsensitiveEq};
-pub use unquote::to_content;
+pub use unquote::{
+    to_content, strip_dquotes
+};
 pub use quote::{
     quote, quote_if_needed
 };
 pub use parse::{validate, parse, Parsed};
 
 
-#[macro_use]
-mod utils;
 pub mod spec;
 mod iter;
 mod unquote;

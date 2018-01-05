@@ -72,79 +72,136 @@ pub fn to_content<'a, Spec: GeneralQSSpec>(
 
 }
 
+/// strips quotes if they exists
+///
+/// returns None if the input does not start with `"` and ends with `"`
+///
+/// # Example
+/// ```
+/// use quoted_string::strip_dquotes;
+/// assert_eq!(strip_dquotes("\"a b\""), Some("a b"));
+/// assert_eq!(strip_dquotes("a b"), None);
+/// assert_eq!(strip_dquotes("\"a b"), None);
+/// assert_eq!(strip_dquotes("a b\""), None);
+/// ```
+pub fn strip_dquotes(quoted_string: &str) -> Option<&str> {
+    let len = quoted_string.len();
+    let bytes = quoted_string.as_bytes();
+    //SLICE_SAFE: && shor circuites if len < 1 and by using bytes there is no problem with utf8
+    // char boundaries
+    if bytes.iter().next() == Some(&b'"') && bytes[len-1] == b'"' {
+        //SLICE_SAFE: [0] and [len-1] are checked to be '"'
+        Some(&quoted_string[1..len-1])
+    } else {
+        None
+    }
+}
+
 
 #[cfg(test)]
 mod test {
-    use test_utils::*;
-    use error::CoreError;
-    use std::borrow::Cow;
-    use super::to_content;
 
-    #[test]
-    fn no_quotes() {
-        let res = to_content::<TestSpec>("noquotes");
-        assert_eq!(res, Err(CoreError::DoesNotStartWithDQuotes));
+    mod to_content {
+        use test_utils::*;
+        use error::CoreError;
+        use std::borrow::Cow;
+        use super::super::to_content;
+
+        #[test]
+        fn no_quotes() {
+            let res = to_content::<TestSpec>("noquotes");
+            assert_eq!(res, Err(CoreError::DoesNotStartWithDQuotes));
+        }
+
+        #[test]
+        fn unnecessary_quoted() {
+            let res = to_content::<TestSpec>(r#""simple""#).unwrap();
+            assert_eq!(res, Cow::Borrowed("simple"))
+        }
+
+        #[test]
+        fn quoted_but_no_quoted_pair() {
+            let res = to_content::<TestSpec>(r#""abc def""#).unwrap();
+            assert_eq!(res, Cow::Borrowed("abc def"))
+        }
+
+        #[test]
+        fn with_quoted_pair() {
+            let res = to_content::<TestSpec>(r#""a\"b""#).unwrap();
+            let expected: Cow<'static, str> = Cow::Owned(r#"a"b"#.into());
+            assert_eq!(res, expected);
+        }
+
+        #[test]
+        fn with_multiple_quoted_pairs() {
+            let res = to_content::<TestSpec>(r#""a\"\bc\ d""#).unwrap();
+            let expected: Cow<'static, str> = Cow::Owned(r#"a"bc d"#.into());
+            assert_eq!(res, expected);
+        }
+
+        #[test]
+        fn empty() {
+            let res = to_content::<TestSpec>(r#""""#).unwrap();
+            assert_eq!(res, Cow::Borrowed(""))
+        }
+
+        #[test]
+        fn strip_non_semantic_ws() {
+            let res = to_content::<TestSpec>("\"hy \n\nthere\"").unwrap();
+            let expected: Cow<'static, str> = Cow::Owned("hy there".into());
+            assert_eq!(res, expected);
+        }
+
+        #[test]
+        fn tailing_escape() {
+            let res = to_content::<TestSpec>(r#""ab\""#);
+            assert_eq!(res, Err(CoreError::DoesNotEndWithDQuotes));
+        }
+
+        #[test]
+        fn missing_escape() {
+            let res = to_content::<TestSpec>("\"a\"\"");
+            assert_eq!(res, Err(CoreError::QuotedStringAlreadyEnded));
+        }
+
+        #[test]
+        fn custom_state_in_parsing_impl_is_used() {
+            let res = to_content::<TestSpec>("\"hy \n+++---\nthere\"").unwrap();
+            let expected: Cow<'static, str> = Cow::Owned("hy there".into());
+            assert_eq!(res, expected);
+
+            let res = to_content::<TestSpec>("\"hy \n+--\nthere\"");
+            assert_eq!(res, Err(CoreError::InvalidChar));
+        }
     }
 
-    #[test]
-    fn unnecessary_quoted() {
-        let res = to_content::<TestSpec>(r#""simple""#).unwrap();
-        assert_eq!(res, Cow::Borrowed("simple"))
-    }
 
-    #[test]
-    fn quoted_but_no_quoted_pair() {
-        let res = to_content::<TestSpec>(r#""abc def""#).unwrap();
-        assert_eq!(res, Cow::Borrowed("abc def"))
-    }
 
-    #[test]
-    fn with_quoted_pair() {
-        let res = to_content::<TestSpec>(r#""a\"b""#).unwrap();
-        let expected: Cow<'static, str> = Cow::Owned(r#"a"b"#.into());
-        assert_eq!(res, expected);
-    }
 
-    #[test]
-    fn with_multiple_quoted_pairs() {
-        let res = to_content::<TestSpec>(r#""a\"\bc\ d""#).unwrap();
-        let expected: Cow<'static, str> = Cow::Owned(r#"a"bc d"#.into());
-        assert_eq!(res, expected);
-    }
 
-    #[test]
-    fn empty() {
-        let res = to_content::<TestSpec>(r#""""#).unwrap();
-        assert_eq!(res, Cow::Borrowed(""))
-    }
+    mod strip_quotes {
+        use super::super::strip_dquotes;
 
-    #[test]
-    fn strip_non_semantic_ws() {
-        let res = to_content::<TestSpec>("\"hy \n\nthere\"").unwrap();
-        let expected: Cow<'static, str> = Cow::Owned("hy there".into());
-        assert_eq!(res, expected);
-    }
+        #[test]
+        fn empty_string() {
+            assert!(strip_dquotes("").is_none());
+        }
 
-    #[test]
-    fn tailing_escape() {
-        let res = to_content::<TestSpec>(r#""ab\""#);
-        assert_eq!(res, Err(CoreError::DoesNotEndWithDQuotes));
-    }
+        #[test]
+        fn empty_quoted_string() {
+            assert_eq!(strip_dquotes("\"\""), Some(""));
+        }
 
-    #[test]
-    fn missing_escape() {
-        let res = to_content::<TestSpec>("\"a\"\"");
-        assert_eq!(res, Err(CoreError::QuotedStringAlreadyEnded));
-    }
+        #[test]
+        fn missing_quotes() {
+            assert_eq!(strip_dquotes("\"abc"), None);
+            assert_eq!(strip_dquotes("abc\""), None);
+        }
 
-    #[test]
-    fn custom_state_in_parsing_impl_is_used() {
-        let res = to_content::<TestSpec>("\"hy \n+++---\nthere\"").unwrap();
-        let expected: Cow<'static, str> = Cow::Owned("hy there".into());
-        assert_eq!(res, expected);
-
-        let res = to_content::<TestSpec>("\"hy \n+--\nthere\"");
-        assert_eq!(res, Err(CoreError::InvalidChar));
+        #[test]
+        fn simple_string() {
+            assert_eq!(strip_dquotes("\"simple\""), Some("simple"));
+        }
     }
 
 }
