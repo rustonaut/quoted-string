@@ -10,6 +10,7 @@ pub trait QuotingClassifier {
     fn classify_for_quoting(pcp: PartialCodePoint) -> QuotingClass;
 }
 
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum QuotingClass {
     QText,
     NeedsQuoting,
