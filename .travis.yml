@@ -6,7 +6,6 @@ rust:
   - stable
   - beta
   - nightly
-  - 1.18.0
 matrix:
   fast_finish: true
   allow_failures:
