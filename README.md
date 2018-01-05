@@ -99,4 +99,7 @@ Change Log
     - Removed unnecessary `Err` Associated Type from `UnquotedValidator`
     - added default impl for `end_validation` of `UnquotedValidator` and `QuotedValidator`
     
-- **0.5.0**: Changed Spec to use a automaton internally
+- **0.5.0**:
+    - Changed Spec to use a automaton internally
+    - renamed `strip_quotes` to `strip_dquotes`
+    
