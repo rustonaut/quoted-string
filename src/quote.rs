@@ -95,7 +95,6 @@ pub fn quote_if_needed<'a, Spec, WQImpl>(
     where Spec: GeneralQSSpec,
           WQImpl: WithoutQuotingValidator
 {
-    use self::QuotingClass::*;
     let mut needs_quoting_from = None;
     for (idx, ch) in input.char_indices() {
         let pcp = PartialCodePoint::from_code_point(ch as u32);
@@ -106,6 +105,7 @@ pub fn quote_if_needed<'a, Spec, WQImpl>(
             //FIXME check if is this even enabled in the right context
             #[cfg(debug_assertions)]
             {
+                use self::QuotingClass::*;
                 match Spec::Quoting::classify_for_quoting(pcp) {
                     QText => {},
                     Invalid => panic!(concat!("[BUG] representable without quoted string,",
