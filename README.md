@@ -102,4 +102,4 @@ Change Log
 - **0.5.0**:
     - Changed Spec to use a automaton internally
     - renamed `strip_quotes` to `strip_dquotes`
-    
+    - default impl for WithoutQuotingValidator::end

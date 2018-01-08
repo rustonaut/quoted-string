@@ -21,7 +21,17 @@ pub trait WithoutQuotingValidator {
     /// if next returns false, it's state should NOT be modified i.e. calling
     /// .end() after next(..) returned false corresponds to the input sequence _until_ next(..) was false
     fn next(&mut self, pcp: PartialCodePoint) -> bool;
-    fn end(&self) -> bool;
+
+    /// this is called once the validation through next ended
+    ///
+    /// - the validation might end because there is no more input
+    /// - but it also might end because next returned false, due to the
+    ///   definition of next to not change the state if it returns false
+    ///   this can and is done
+    /// - it _does not_ need to validate that the length is at last 1, this
+    ///   is done by the algorithm using it
+    /// - so for many cases this is just true (the default impl)
+    fn end(&self) -> bool { true }
 }
 
 
