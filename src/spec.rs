@@ -18,8 +18,10 @@ pub enum QuotingClass {
 }
 
 pub trait WithoutQuotingValidator {
-    /// if next returns false, it's state should NOT be modified i.e. calling
-    /// .end() after next(..) returned false corresponds to the input sequence _until_ next(..) was false
+    /// if next returns false, it's (self) state should NOT be modified
+    /// i.e. calling .end() after next(..) and returning false corresponds
+    /// to the input sequence _until_ next(..) was false, not including
+    /// the `pcp` from the last `next` call
     fn next(&mut self, pcp: PartialCodePoint) -> bool;
 
     /// this is called once the validation through next ended
@@ -156,3 +158,13 @@ impl PartialCodePoint {
 }
 
 
+/// Allows unquoted text containing only `_ | a..z | A..Z | 0..9`
+#[derive(Copy, Clone, Debug)]
+pub struct AsciiWordValidator;
+
+impl WithoutQuotingValidator for AsciiWordValidator {
+    fn next(&mut self, pcp: PartialCodePoint) -> bool {
+        let u8val = pcp.as_u8();
+        u8val.is_ascii_alphanumeric() || u8val == b'_'
+    }
+}

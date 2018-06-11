@@ -65,6 +65,17 @@ fn quote_inner<Spec: GeneralQSSpec>(
 
 /// quotes the input string if needed
 ///
+/// The `validator` decides if the value is valid without
+/// quoting it, the `Spec` type decides how quoting is done if
+/// needed. The `Spec` only specifies the format of quoting
+/// e.g. which values are allowed in a quoted-string but
+/// wether or not a string needs quoting can often depend
+/// on additional factor.
+///
+/// Note that this implementation expects the
+/// validator and spec to be in sync, i.e. what
+/// is valid without quoting does not need to
+/// be escaped when appearing in a quoted string.
 ///
 /// # Example
 ///

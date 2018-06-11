@@ -42,9 +42,8 @@ extern crate quoted_string;
 // we use a QuotedStringSpec provided for testing here,
 // not that it's made to hit some edge cases in a simple way
 // so it does not correspond to any used real Spec
-use quoted_string::test_utils::TestSpec;
-type Spec = TestSpec;
-
+use quoted_string::test_utils::{TestSpec as Spec};
+use quoted_string::spec::AsciiWordValidator;
 use quoted_string::{parse, quote, quote_if_needed, to_content};
 
 fn main() {
@@ -55,12 +54,13 @@ fn main() {
     let content = to_content::<Spec>(qs)
         .expect("[BUG] to_content is guaranteed to succeed if input is a valid quoted string");
     assert_eq!(content, "quoted\"string");
-    let (re_quoted, _meta) = quote::<Spec>(&*content)
+    let re_quoted = quote::<Spec>(&*content)
         .expect("[BUG] quote is guaranteed to succeed if the input is representable in a quoted string");
     assert_eq!(re_quoted, "\"quoted\\\"string\"");
 
     // TestSpec specifies us-ascii words with 6 letters need no quoting
-    let (out, _meta) = quote_if_needed::<Spec>("simple").unwrap();
+    let mut without_quoting = AsciiWordValidator;
+    let out = quote_if_needed::<Spec, _>("simple", &mut without_quoting).unwrap();
     assert_eq!(&*out, "simple");
 }
 
@@ -105,3 +105,8 @@ Change Log
   - Changed Spec to use a automaton internally
   - renamed `strip_quotes` to `strip_dquotes`
   - default impl for WithoutQuotingValidator::end
+
+- **0.6.0**:
+  - min rust version is now `rustc v1.24`
+  - added `AsciiWordValidator`
+  - fixed example in README
