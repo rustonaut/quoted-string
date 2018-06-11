@@ -2,7 +2,7 @@ use std::borrow::Cow;
 // this import will become unused in future rust versions
 // but won't be removed for now for supporting current
 // rust versions
-#[allow(unused_imports)]
+#[allow(unused_imports, deprecated)]
 use std::ascii::AsciiExt;
 
 use error::CoreError;
