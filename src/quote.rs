@@ -43,9 +43,9 @@ pub fn quote<Spec: GeneralQSSpec>(
 
 /// quotes a input writing it into the output buffer, does not add surrounding '"'
 ///
-/// if ascii_only is true and non asii chars a fround an error is returned.
+/// if ascii_only is true and non ascii chars a found an error is returned.
 ///
-/// If no error is returned a boolean indecating if the whole input was ascii is
+/// If no error is returned a boolean indicating if the whole input was ascii is
 /// returned.
 fn quote_inner<Spec: GeneralQSSpec>(
     input: &str,
@@ -175,7 +175,7 @@ mod test {
     }
 
     #[test]
-    fn quote_if_needed_unneded() {
+    fn quote_if_needed_unneeded() {
         let mut without_quoting = TestUnquotedValidator::new();
         let out= quote_if_needed::<TestSpec, _>("abcdef", &mut without_quoting).unwrap();
         assert_eq!(out, Cow::Borrowed("abcdef"));
